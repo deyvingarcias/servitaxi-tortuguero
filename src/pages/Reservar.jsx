@@ -95,44 +95,60 @@ function Reservar() {
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
+  e.preventDefault();
 
-    if (!validateStep(1) || !validateStep(2) || !validateStep(3)) {
-      setError("Completa todos los campos obligatorios antes de confirmar.");
-      return;
-    }
+  if (!validateStep(1) || !validateStep(2) || !validateStep(3)) {
+    setError("Completa todos los campos obligatorios antes de confirmar.");
+    return;
+  }
 
-    const destinoFinal = form.destino === "Otro" ? form.otroDestino.trim() : form.destino;
+  const destinoFinal = form.destino === "Otro" ? form.otroDestino.trim() : form.destino;
 
-    setLoading(true);
-    setError("");
+  setLoading(true);
+  setError("");
 
+  try {
+    const payload = {
+      cliente_nombre: form.clienteNombre.trim(),
+      cliente_email: form.clienteEmail.trim(),
+      cliente_telefono: form.clienteTelefono.trim(),
+      tipo_servicio: form.tipoServicio,
+      origen: form.origen.trim(),
+      destino: destinoFinal,
+      fecha_hora: form.fechaHora,
+      metodo_pago: form.metodoPago,
+      estado: "pendiente",
+    };
+
+    const { error: insertError } = await supabase.from("reservas").insert([payload]);
+    if (insertError) throw insertError;
+
+    // Enviar email — si falla no bloquea la reserva
     try {
-      const payload = {
-        cliente_nombre: form.clienteNombre.trim(),
-        cliente_email: form.clienteEmail.trim(),
-        cliente_telefono: form.clienteTelefono.trim(),
-        tipo_servicio: form.tipoServicio,
-        origen: form.origen.trim(),
-        destino: destinoFinal,
-        fecha_hora: form.fechaHora,
-        metodo_pago: form.metodoPago,
-        estado: "pendiente",
-      };
-
-      const { error: insertError } = await supabase.from("reservas").insert([payload]);
-
-      if (insertError) {
-        throw insertError;
-      }
-
-      navigate("/confirmacion");
-    } catch (err) {
-      setError(err?.message || "No se pudo confirmar la reserva. Intenta de nuevo.");
-    } finally {
-      setLoading(false);
+      await fetch("/api/enviar-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          cliente_nombre: payload.cliente_nombre,
+          cliente_email: payload.cliente_email,
+          origen: payload.origen,
+          destino: destinoFinal,
+          fecha_hora: payload.fecha_hora,
+          tipo_servicio: payload.tipo_servicio,
+          metodo_pago: payload.metodo_pago,
+        }),
+      });
+    } catch (emailErr) {
+      console.error("Email no enviado:", emailErr);
     }
-  };
+
+    navigate("/confirmacion");
+  } catch (err) {
+    setError(err?.message || "No se pudo confirmar la reserva. Intenta de nuevo.");
+  } finally {
+    setLoading(false);
+  }
+};
 
   const destinoMostrado = form.destino === "Otro" ? form.otroDestino.trim() : form.destino;
 
