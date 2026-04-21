@@ -12,6 +12,7 @@ import Login from "./pages/admin/Login.jsx";
 import ReservasAdmin from "./pages/admin/Reservas.jsx";
 import ReservaDetalle from "./pages/admin/ReservaDetalle.jsx";
 import Publicidad from "./pages/admin/Publicidad.jsx";
+import ProtectedRoute from "./components/ProtectedRoute";
 
 createRoot(document.getElementById("root")).render(
   <StrictMode>
@@ -22,11 +23,15 @@ createRoot(document.getElementById("root")).render(
         <Route path="/reservar" element={<Reservar />} />
         <Route path="/confirmacion" element={<Confirmacion />} />
 
-        {/* ADMIN */}
+        {/* ADMIN LOGIN (sin protección) */}
         <Route path="/admin/login" element={<Login />} />
-        <Route path="/admin/reservas" element={<ReservasAdmin />} />
-        <Route path="/admin/reservas/:id" element={<ReservaDetalle />} />
-        <Route path="/admin/publicidad" element={<Publicidad />} />
+
+        {/* ADMIN PROTEGIDO */}
+        <Route element={<ProtectedRoute />}>
+          <Route path="/admin/reservas" element={<ReservasAdmin />} />
+          <Route path="/admin/reservas/:id" element={<ReservaDetalle />} />
+          <Route path="/admin/publicidad" element={<Publicidad />} />
+        </Route>
       </Routes>
     </BrowserRouter>
   </StrictMode>
