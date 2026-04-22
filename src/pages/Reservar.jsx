@@ -95,62 +95,77 @@ function Reservar() {
   };
 
   const handleSubmit = async (e) => {
-  e.preventDefault();
+    e.preventDefault();
 
-  if (!validateStep(1) || !validateStep(2) || !validateStep(3)) {
-    setError("Completa todos los campos obligatorios antes de confirmar.");
-    return;
-  }
+    if (!validateStep(1) || !validateStep(2) || !validateStep(3)) {
+      setError("Completa todos los campos obligatorios antes de confirmar.");
+      return;
+    }
 
-  const destinoFinal = form.destino === "Otro" ? form.otroDestino.trim() : form.destino;
+    const destinoFinal =
+      form.destino === "Otro" ? form.otroDestino.trim() : form.destino;
 
-  setLoading(true);
-  setError("");
+    setLoading(true);
+    setError("");
 
-  try {
-    const payload = {
-      cliente_nombre: form.clienteNombre.trim(),
-      cliente_email: form.clienteEmail.trim(),
-      cliente_telefono: form.clienteTelefono.trim(),
-      tipo_servicio: form.tipoServicio,
-      origen: form.origen.trim(),
-      destino: destinoFinal,
-      fecha_hora: form.fechaHora,
-      metodo_pago: form.metodoPago,
-      estado: "pendiente",
-    };
-
-    const { error: insertError } = await supabase.from("reservas").insert([payload]);
-    if (insertError) throw insertError;
-
-    // Enviar email — si falla no bloquea la reserva
     try {
-      await fetch("/api/enviar-email", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      const payload = {
+        cliente_nombre: form.clienteNombre.trim(),
+        cliente_email: form.clienteEmail.trim(),
+        cliente_telefono: form.clienteTelefono.trim(),
+        tipo_servicio: form.tipoServicio,
+        origen: form.origen.trim(),
+        destino: destinoFinal,
+        fecha_hora: form.fechaHora,
+        metodo_pago: form.metodoPago,
+        estado: "pendiente",
+      };
+
+      const { error: insertError } = await supabase
+        .from("reservas")
+        .insert([payload]);
+
+      if (insertError) throw insertError;
+
+      try {
+        await fetch("/api/enviar-email", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            cliente_nombre: payload.cliente_nombre,
+            cliente_email: payload.cliente_email,
+            origen: payload.origen,
+            destino: destinoFinal,
+            fecha_hora: payload.fecha_hora,
+            tipo_servicio: payload.tipo_servicio,
+            metodo_pago: payload.metodo_pago,
+          }),
+        });
+      } catch (emailErr) {
+        console.error("Email no enviado:", emailErr);
+      }
+
+      navigate("/confirmacion", {
+        state: {
           cliente_nombre: payload.cliente_nombre,
-          cliente_email: payload.cliente_email,
           origen: payload.origen,
           destino: destinoFinal,
           fecha_hora: payload.fecha_hora,
           tipo_servicio: payload.tipo_servicio,
           metodo_pago: payload.metodo_pago,
-        }),
+        },
       });
-    } catch (emailErr) {
-      console.error("Email no enviado:", emailErr);
+    } catch (err) {
+      setError(
+        err?.message || "No se pudo confirmar la reserva. Intenta de nuevo."
+      );
+    } finally {
+      setLoading(false);
     }
+  };
 
-    navigate("/confirmacion");
-  } catch (err) {
-    setError(err?.message || "No se pudo confirmar la reserva. Intenta de nuevo.");
-  } finally {
-    setLoading(false);
-  }
-};
-
-  const destinoMostrado = form.destino === "Otro" ? form.otroDestino.trim() : form.destino;
+  const destinoMostrado =
+    form.destino === "Otro" ? form.otroDestino.trim() : form.destino;
 
   return (
     <div className="min-h-screen bg-zinc-50 px-4 py-6 text-zinc-900 sm:px-6 lg:px-8">
@@ -186,7 +201,11 @@ function Reservar() {
                         {pasoNumero}
                       </div>
                       <div>
-                        <p className={`text-sm font-semibold ${activo ? "text-emerald-700" : "text-zinc-700"}`}>
+                        <p
+                          className={`text-sm font-semibold ${
+                            activo ? "text-emerald-700" : "text-zinc-700"
+                          }`}
+                        >
                           Paso {pasoNumero}
                         </p>
                         <p className="text-xs text-zinc-500">{label}</p>
@@ -213,7 +232,9 @@ function Reservar() {
               <h2 className="text-lg font-semibold text-zinc-900">Servicio y ruta</h2>
 
               <div className="mt-5">
-                <label className="mb-3 block text-sm font-medium text-zinc-700">Tipo de servicio</label>
+                <label className="mb-3 block text-sm font-medium text-zinc-700">
+                  Tipo de servicio
+                </label>
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   {servicioOptions.map((option) => {
                     const selected = form.tipoServicio === option.value;
@@ -230,18 +251,25 @@ function Reservar() {
                       >
                         <span className="block text-base font-semibold">{option.label}</span>
                         <span className="mt-1 block text-sm text-zinc-500">
-                          {option.value === "taxi" ? "Viajes rápidos y cómodos" : "Carga ligera o pesada"}
+                          {option.value === "taxi"
+                            ? "Viajes rápidos y cómodos"
+                            : "Carga ligera o pesada"}
                         </span>
                       </button>
                     );
                   })}
                 </div>
-                {fieldErrors.tipoServicio && <p className="mt-2 text-sm text-red-600">{fieldErrors.tipoServicio}</p>}
+                {fieldErrors.tipoServicio && (
+                  <p className="mt-2 text-sm text-red-600">{fieldErrors.tipoServicio}</p>
+                )}
               </div>
 
               <div className="mt-5 grid gap-5">
                 <div>
-                  <label htmlFor="origen" className="mb-2 block text-sm font-medium text-zinc-700">
+                  <label
+                    htmlFor="origen"
+                    className="mb-2 block text-sm font-medium text-zinc-700"
+                  >
                     Origen
                   </label>
                   <input
@@ -256,11 +284,16 @@ function Reservar() {
                         : "border-zinc-200 focus:border-emerald-500 focus:ring-emerald-100"
                     }`}
                   />
-                  {fieldErrors.origen && <p className="mt-2 text-sm text-red-600">{fieldErrors.origen}</p>}
+                  {fieldErrors.origen && (
+                    <p className="mt-2 text-sm text-red-600">{fieldErrors.origen}</p>
+                  )}
                 </div>
 
                 <div>
-                  <label htmlFor="destino" className="mb-2 block text-sm font-medium text-zinc-700">
+                  <label
+                    htmlFor="destino"
+                    className="mb-2 block text-sm font-medium text-zinc-700"
+                  >
                     Destino
                   </label>
                   <select
@@ -280,12 +313,17 @@ function Reservar() {
                       </option>
                     ))}
                   </select>
-                  {fieldErrors.destino && <p className="mt-2 text-sm text-red-600">{fieldErrors.destino}</p>}
+                  {fieldErrors.destino && (
+                    <p className="mt-2 text-sm text-red-600">{fieldErrors.destino}</p>
+                  )}
                 </div>
 
                 {form.destino === "Otro" && (
                   <div>
-                    <label htmlFor="otroDestino" className="mb-2 block text-sm font-medium text-zinc-700">
+                    <label
+                      htmlFor="otroDestino"
+                      className="mb-2 block text-sm font-medium text-zinc-700"
+                    >
                       Otro destino
                     </label>
                     <input
@@ -301,7 +339,9 @@ function Reservar() {
                       }`}
                     />
                     {fieldErrors.otroDestino && (
-                      <p className="mt-2 text-sm text-red-600">{fieldErrors.otroDestino}</p>
+                      <p className="mt-2 text-sm text-red-600">
+                        {fieldErrors.otroDestino}
+                      </p>
                     )}
                   </div>
                 )}
@@ -311,11 +351,16 @@ function Reservar() {
 
           {step === 2 && (
             <section className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-zinc-200 sm:p-6">
-              <h2 className="text-lg font-semibold text-zinc-900">Fecha y datos del cliente</h2>
+              <h2 className="text-lg font-semibold text-zinc-900">
+                Fecha y datos del cliente
+              </h2>
 
               <div className="mt-5 grid gap-5">
                 <div>
-                  <label htmlFor="fechaHora" className="mb-2 block text-sm font-medium text-zinc-700">
+                  <label
+                    htmlFor="fechaHora"
+                    className="mb-2 block text-sm font-medium text-zinc-700"
+                  >
                     Fecha y hora
                   </label>
                   <input
@@ -329,11 +374,16 @@ function Reservar() {
                         : "border-zinc-200 focus:border-emerald-500 focus:ring-emerald-100"
                     }`}
                   />
-                  {fieldErrors.fechaHora && <p className="mt-2 text-sm text-red-600">{fieldErrors.fechaHora}</p>}
+                  {fieldErrors.fechaHora && (
+                    <p className="mt-2 text-sm text-red-600">{fieldErrors.fechaHora}</p>
+                  )}
                 </div>
 
                 <div>
-                  <label htmlFor="clienteNombre" className="mb-2 block text-sm font-medium text-zinc-700">
+                  <label
+                    htmlFor="clienteNombre"
+                    className="mb-2 block text-sm font-medium text-zinc-700"
+                  >
                     Nombre completo
                   </label>
                   <input
@@ -348,12 +398,17 @@ function Reservar() {
                     }`}
                   />
                   {fieldErrors.clienteNombre && (
-                    <p className="mt-2 text-sm text-red-600">{fieldErrors.clienteNombre}</p>
+                    <p className="mt-2 text-sm text-red-600">
+                      {fieldErrors.clienteNombre}
+                    </p>
                   )}
                 </div>
 
                 <div>
-                  <label htmlFor="clienteTelefono" className="mb-2 block text-sm font-medium text-zinc-700">
+                  <label
+                    htmlFor="clienteTelefono"
+                    className="mb-2 block text-sm font-medium text-zinc-700"
+                  >
                     Teléfono
                   </label>
                   <input
@@ -368,12 +423,17 @@ function Reservar() {
                     }`}
                   />
                   {fieldErrors.clienteTelefono && (
-                    <p className="mt-2 text-sm text-red-600">{fieldErrors.clienteTelefono}</p>
+                    <p className="mt-2 text-sm text-red-600">
+                      {fieldErrors.clienteTelefono}
+                    </p>
                   )}
                 </div>
 
                 <div>
-                  <label htmlFor="clienteEmail" className="mb-2 block text-sm font-medium text-zinc-700">
+                  <label
+                    htmlFor="clienteEmail"
+                    className="mb-2 block text-sm font-medium text-zinc-700"
+                  >
                     Email
                   </label>
                   <input
@@ -387,7 +447,11 @@ function Reservar() {
                         : "border-zinc-200 focus:border-emerald-500 focus:ring-emerald-100"
                     }`}
                   />
-                  {fieldErrors.clienteEmail && <p className="mt-2 text-sm text-red-600">{fieldErrors.clienteEmail}</p>}
+                  {fieldErrors.clienteEmail && (
+                    <p className="mt-2 text-sm text-red-600">
+                      {fieldErrors.clienteEmail}
+                    </p>
+                  )}
                 </div>
               </div>
             </section>
@@ -395,10 +459,14 @@ function Reservar() {
 
           {step === 3 && (
             <section className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-zinc-200 sm:p-6">
-              <h2 className="text-lg font-semibold text-zinc-900">Método de pago y confirmación</h2>
+              <h2 className="text-lg font-semibold text-zinc-900">
+                Método de pago y confirmación
+              </h2>
 
               <div className="mt-5">
-                <label className="mb-3 block text-sm font-medium text-zinc-700">Método de pago</label>
+                <label className="mb-3 block text-sm font-medium text-zinc-700">
+                  Método de pago
+                </label>
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   {pagoOptions.map((option) => {
                     const selected = form.metodoPago === option.value;
@@ -415,17 +483,23 @@ function Reservar() {
                       >
                         <span className="block text-base font-semibold">{option.label}</span>
                         <span className="mt-1 block text-sm text-zinc-500">
-                          {option.value === "presencial" ? "Pagas cuando llegues" : "Pago digital"}
+                          {option.value === "presencial"
+                            ? "Pagas cuando llegues"
+                            : "Pago digital"}
                         </span>
                       </button>
                     );
                   })}
                 </div>
-                {fieldErrors.metodoPago && <p className="mt-2 text-sm text-red-600">{fieldErrors.metodoPago}</p>}
+                {fieldErrors.metodoPago && (
+                  <p className="mt-2 text-sm text-red-600">{fieldErrors.metodoPago}</p>
+                )}
               </div>
 
               <div className="mt-6 rounded-3xl bg-zinc-50 p-4 ring-1 ring-zinc-200">
-                <h3 className="text-sm font-semibold uppercase tracking-wide text-zinc-500">Resumen de la reserva</h3>
+                <h3 className="text-sm font-semibold uppercase tracking-wide text-zinc-500">
+                  Resumen de la reserva
+                </h3>
                 <div className="mt-4 grid gap-3 text-sm text-zinc-700 sm:grid-cols-2">
                   <div>
                     <span className="block text-zinc-500">Servicio</span>
@@ -460,7 +534,9 @@ function Reservar() {
                   <div>
                     <span className="block text-zinc-500">Pago</span>
                     <span className="font-medium">
-                      {form.metodoPago === "online" ? "Pagar en línea" : "Pagar al llegar"}
+                      {form.metodoPago === "online"
+                        ? "Pagar en línea"
+                        : "Pagar al llegar"}
                     </span>
                   </div>
                 </div>
@@ -494,12 +570,13 @@ function Reservar() {
               </button>
             ) : (
               <button
-                type="submit"
-                disabled={loading}
-                className="rounded-2xl bg-red-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-70"
-              >
-                {loading ? "Confirmando..." : "Confirmar reserva"}
-              </button>
+  type="button"
+  disabled={loading}
+  onClick={handleSubmit}
+  className="rounded-2xl bg-red-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-70"
+>
+  {loading ? "Confirmando..." : "Confirmar reserva"}
+</button>
             )}
           </div>
         </form>
