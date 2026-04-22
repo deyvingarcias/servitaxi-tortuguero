@@ -22,3 +22,10 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# ⚠️ CRÍTICO — Variables de entorno (nunca subir al repo)
+.env
+.env.local
+.env.production
+.env.development
+.env.*.local
