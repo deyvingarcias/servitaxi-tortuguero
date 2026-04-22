@@ -1,25 +1,15 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
-import { DESTINOS as destinos } from "../constants/destinos";
+import { LUGARES, getPrecio } from "../constants/destinos";
 
-const pasos = ["Servicio y ruta", "Fecha y datos", "Pago y confirmación"];
-
-const servicioOptions = [
-  { value: "taxi", label: "Taxi" },
-  { value: "carga", label: "Camión de carga" },
-];
-
-const pagoOptions = [
-  { value: "presencial", label: "Pagar al llegar" },
-  { value: "online", label: "Pagar en línea" },
-];
+const pasos = ["Pedir taxi", "Fecha y datos", "Confirmar"];
 
 const initialForm = {
   tipoServicio: "taxi",
   origen: "",
   destino: "",
-  otroDestino: "",
+  pasajeros: "1",
   fechaHora: "",
   clienteNombre: "",
   clienteTelefono: "",
@@ -35,16 +25,41 @@ function Reservar() {
   const [error, setError] = useState("");
   const [fieldErrors, setFieldErrors] = useState({});
 
-  const destinosDisponibles = useMemo(() => [...destinos, "Otro"], []);
+  const destinosDisponibles = useMemo(() => {
+    return LUGARES.filter((lugar) => lugar !== form.origen);
+  }, [form.origen]);
+
+  const precioCalculado = useMemo(() => {
+    if (!form.origen || !form.destino) return null;
+    return getPrecio(form.origen, form.destino);
+  }, [form.origen, form.destino]);
+
+  const precioTexto =
+    precioCalculado === null
+      ? "Precio a negociar con el taxista"
+      : `C$${precioCalculado}`;
+
+  const destinoMostrado = form.destino || "—";
 
   const updateField = (name, value) => {
-    setForm((prev) => ({ ...prev, [name]: value }));
+    setForm((prev) => {
+      const next = { ...prev, [name]: value };
+
+      // Si cambia el origen y el destino actual ya no es válido, se limpia
+      if (name === "origen" && next.destino === value) {
+        next.destino = "";
+      }
+
+      return next;
+    });
+
     setFieldErrors((prev) => {
       if (!prev[name]) return prev;
       const next = { ...prev };
       delete next[name];
       return next;
     });
+
     setError("");
   };
 
@@ -52,18 +67,28 @@ function Reservar() {
     const nextErrors = {};
 
     if (currentStep === 1) {
-      if (!form.tipoServicio) nextErrors.tipoServicio = "Selecciona un tipo de servicio.";
-      if (!form.origen.trim()) nextErrors.origen = "Escribe el origen.";
+      if (!form.origen) nextErrors.origen = "Selecciona un origen.";
       if (!form.destino) nextErrors.destino = "Selecciona un destino.";
-      if (form.destino === "Otro" && !form.otroDestino.trim()) {
-        nextErrors.otroDestino = "Escribe el otro destino.";
+
+      const pasajerosNum = Number(form.pasajeros);
+      if (
+        !form.pasajeros ||
+        Number.isNaN(pasajerosNum) ||
+        pasajerosNum < 1 ||
+        pasajerosNum > 8
+      ) {
+        nextErrors.pasajeros = "Indica entre 1 y 8 pasajeros.";
       }
     }
 
     if (currentStep === 2) {
       if (!form.fechaHora) nextErrors.fechaHora = "Selecciona fecha y hora.";
-      if (!form.clienteNombre.trim()) nextErrors.clienteNombre = "Escribe tu nombre completo.";
-      if (!form.clienteTelefono.trim()) nextErrors.clienteTelefono = "Escribe tu teléfono.";
+      if (!form.clienteNombre.trim()) {
+        nextErrors.clienteNombre = "Escribe tu nombre completo.";
+      }
+      if (!form.clienteTelefono.trim()) {
+        nextErrors.clienteTelefono = "Escribe tu teléfono.";
+      }
       if (!form.clienteEmail.trim()) {
         nextErrors.clienteEmail = "Escribe tu correo electrónico.";
       } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.clienteEmail.trim())) {
@@ -97,13 +122,23 @@ function Reservar() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!validateStep(1) || !validateStep(2) || !validateStep(3)) {
-      setError("Completa todos los campos obligatorios antes de confirmar.");
+    if (!validateStep(1)) {
+      setStep(1);
+      setError("Completa los campos del paso 1 antes de confirmar.");
       return;
     }
 
-    const destinoFinal =
-      form.destino === "Otro" ? form.otroDestino.trim() : form.destino;
+    if (!validateStep(2)) {
+      setStep(2);
+      setError("Completa los campos del paso 2 antes de confirmar.");
+      return;
+    }
+
+    if (!validateStep(3)) {
+      setStep(3);
+      setError("Completa los campos obligatorios antes de confirmar.");
+      return;
+    }
 
     setLoading(true);
     setError("");
@@ -114,10 +149,11 @@ function Reservar() {
         cliente_email: form.clienteEmail.trim(),
         cliente_telefono: form.clienteTelefono.trim(),
         tipo_servicio: form.tipoServicio,
-        origen: form.origen.trim(),
-        destino: destinoFinal,
+        origen: form.origen,
+        destino: form.destino,
         fecha_hora: form.fechaHora,
         metodo_pago: form.metodoPago,
+        pasajeros: Number(form.pasajeros),
         estado: "pendiente",
       };
 
@@ -134,11 +170,14 @@ function Reservar() {
           body: JSON.stringify({
             cliente_nombre: payload.cliente_nombre,
             cliente_email: payload.cliente_email,
+            cliente_telefono: payload.cliente_telefono,
             origen: payload.origen,
-            destino: destinoFinal,
+            destino: payload.destino,
             fecha_hora: payload.fecha_hora,
             tipo_servicio: payload.tipo_servicio,
             metodo_pago: payload.metodo_pago,
+            pasajeros: payload.pasajeros,
+            precio: precioCalculado,
           }),
         });
       } catch (emailErr) {
@@ -148,11 +187,15 @@ function Reservar() {
       navigate("/confirmacion", {
         state: {
           cliente_nombre: payload.cliente_nombre,
+          cliente_email: payload.cliente_email,
+          cliente_telefono: payload.cliente_telefono,
           origen: payload.origen,
-          destino: destinoFinal,
+          destino: payload.destino,
           fecha_hora: payload.fecha_hora,
           tipo_servicio: payload.tipo_servicio,
           metodo_pago: payload.metodo_pago,
+          pasajeros: payload.pasajeros,
+          precio: precioCalculado,
         },
       });
     } catch (err) {
@@ -164,9 +207,6 @@ function Reservar() {
     }
   };
 
-  const destinoMostrado =
-    form.destino === "Otro" ? form.otroDestino.trim() : form.destino;
-
   return (
     <div className="min-h-screen bg-zinc-50 px-4 py-6 text-zinc-900 sm:px-6 lg:px-8">
       <div className="mx-auto w-full max-w-3xl">
@@ -174,7 +214,9 @@ function Reservar() {
           <p className="text-sm/6 font-medium uppercase tracking-[0.2em] text-white/80">
             ServiTaxi Tortuguero
           </p>
-          <h1 className="mt-2 text-2xl font-bold sm:text-3xl">Reserva tu transporte</h1>
+          <h1 className="mt-2 text-2xl font-bold sm:text-3xl">
+            Reserva tu transporte
+          </h1>
           <p className="mt-2 max-w-2xl text-sm text-white/90 sm:text-base">
             Completa los 3 pasos para solicitar tu viaje bajo demanda.
           </p>
@@ -229,40 +271,9 @@ function Reservar() {
         <form onSubmit={handleSubmit} className="space-y-6">
           {step === 1 && (
             <section className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-zinc-200 sm:p-6">
-              <h2 className="text-lg font-semibold text-zinc-900">Servicio y ruta</h2>
-
-              <div className="mt-5">
-                <label className="mb-3 block text-sm font-medium text-zinc-700">
-                  Tipo de servicio
-                </label>
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  {servicioOptions.map((option) => {
-                    const selected = form.tipoServicio === option.value;
-                    return (
-                      <button
-                        key={option.value}
-                        type="button"
-                        onClick={() => updateField("tipoServicio", option.value)}
-                        className={`rounded-2xl border-2 px-4 py-4 text-left transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500 ${
-                          selected
-                            ? "border-emerald-600 bg-emerald-50 text-emerald-700"
-                            : "border-zinc-200 bg-white text-zinc-700 hover:border-zinc-300"
-                        }`}
-                      >
-                        <span className="block text-base font-semibold">{option.label}</span>
-                        <span className="mt-1 block text-sm text-zinc-500">
-                          {option.value === "taxi"
-                            ? "Viajes rápidos y cómodos"
-                            : "Carga ligera o pesada"}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-                {fieldErrors.tipoServicio && (
-                  <p className="mt-2 text-sm text-red-600">{fieldErrors.tipoServicio}</p>
-                )}
-              </div>
+              <h2 className="text-lg font-semibold text-zinc-900">
+                Pedir taxi
+              </h2>
 
               <div className="mt-5 grid gap-5">
                 <div>
@@ -272,20 +283,27 @@ function Reservar() {
                   >
                     Origen
                   </label>
-                  <input
+                  <select
                     id="origen"
-                    type="text"
                     value={form.origen}
                     onChange={(e) => updateField("origen", e.target.value)}
-                    placeholder='Ej: "Mi casa en Tortuguero"'
                     className={`w-full rounded-2xl border bg-white px-4 py-3 text-sm outline-none transition focus:ring-2 ${
                       fieldErrors.origen
                         ? "border-red-300 focus:border-red-500 focus:ring-red-100"
                         : "border-zinc-200 focus:border-emerald-500 focus:ring-emerald-100"
                     }`}
-                  />
+                  >
+                    <option value="">Selecciona un origen</option>
+                    {LUGARES.map((lugar) => (
+                      <option key={lugar} value={lugar}>
+                        {lugar}
+                      </option>
+                    ))}
+                  </select>
                   {fieldErrors.origen && (
-                    <p className="mt-2 text-sm text-red-600">{fieldErrors.origen}</p>
+                    <p className="mt-2 text-sm text-red-600">
+                      {fieldErrors.origen}
+                    </p>
                   )}
                 </div>
 
@@ -300,13 +318,18 @@ function Reservar() {
                     id="destino"
                     value={form.destino}
                     onChange={(e) => updateField("destino", e.target.value)}
-                    className={`w-full rounded-2xl border bg-white px-4 py-3 text-sm outline-none transition focus:ring-2 ${
+                    disabled={!form.origen}
+                    className={`w-full rounded-2xl border bg-white px-4 py-3 text-sm outline-none transition focus:ring-2 disabled:cursor-not-allowed disabled:bg-zinc-100 ${
                       fieldErrors.destino
                         ? "border-red-300 focus:border-red-500 focus:ring-red-100"
                         : "border-zinc-200 focus:border-emerald-500 focus:ring-emerald-100"
                     }`}
                   >
-                    <option value="">Selecciona un destino</option>
+                    <option value="">
+                      {form.origen
+                        ? "Selecciona un destino"
+                        : "Selecciona primero el origen"}
+                    </option>
                     {destinosDisponibles.map((destino) => (
                       <option key={destino} value={destino}>
                         {destino}
@@ -314,35 +337,49 @@ function Reservar() {
                     ))}
                   </select>
                   {fieldErrors.destino && (
-                    <p className="mt-2 text-sm text-red-600">{fieldErrors.destino}</p>
+                    <p className="mt-2 text-sm text-red-600">
+                      {fieldErrors.destino}
+                    </p>
                   )}
                 </div>
 
-                {form.destino === "Otro" && (
-                  <div>
-                    <label
-                      htmlFor="otroDestino"
-                      className="mb-2 block text-sm font-medium text-zinc-700"
-                    >
-                      Otro destino
-                    </label>
-                    <input
-                      id="otroDestino"
-                      type="text"
-                      value={form.otroDestino}
-                      onChange={(e) => updateField("otroDestino", e.target.value)}
-                      placeholder="Escribe el destino exacto"
-                      className={`w-full rounded-2xl border bg-white px-4 py-3 text-sm outline-none transition focus:ring-2 ${
-                        fieldErrors.otroDestino
-                          ? "border-red-300 focus:border-red-500 focus:ring-red-100"
-                          : "border-zinc-200 focus:border-emerald-500 focus:ring-emerald-100"
-                      }`}
-                    />
-                    {fieldErrors.otroDestino && (
-                      <p className="mt-2 text-sm text-red-600">
-                        {fieldErrors.otroDestino}
-                      </p>
-                    )}
+                <div>
+                  <label
+                    htmlFor="pasajeros"
+                    className="mb-2 block text-sm font-medium text-zinc-700"
+                  >
+                    Número de pasajeros
+                  </label>
+                  <input
+                    id="pasajeros"
+                    type="number"
+                    min="1"
+                    max="8"
+                    step="1"
+                    inputMode="numeric"
+                    value={form.pasajeros}
+                    onChange={(e) => updateField("pasajeros", e.target.value)}
+                    className={`w-full rounded-2xl border bg-white px-4 py-3 text-sm outline-none transition focus:ring-2 ${
+                      fieldErrors.pasajeros
+                        ? "border-red-300 focus:border-red-500 focus:ring-red-100"
+                        : "border-zinc-200 focus:border-emerald-500 focus:ring-emerald-100"
+                    }`}
+                  />
+                  {fieldErrors.pasajeros && (
+                    <p className="mt-2 text-sm text-red-600">
+                      {fieldErrors.pasajeros}
+                    </p>
+                  )}
+                </div>
+
+                {form.origen && form.destino && (
+                  <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-4">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
+                      Precio del viaje
+                    </p>
+                    <p className="mt-1 text-lg font-bold text-emerald-700">
+                      {precioTexto}
+                    </p>
                   </div>
                 )}
               </div>
@@ -352,7 +389,7 @@ function Reservar() {
           {step === 2 && (
             <section className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-zinc-200 sm:p-6">
               <h2 className="text-lg font-semibold text-zinc-900">
-                Fecha y datos del cliente
+                Fecha y datos
               </h2>
 
               <div className="mt-5 grid gap-5">
@@ -375,7 +412,9 @@ function Reservar() {
                     }`}
                   />
                   {fieldErrors.fechaHora && (
-                    <p className="mt-2 text-sm text-red-600">{fieldErrors.fechaHora}</p>
+                    <p className="mt-2 text-sm text-red-600">
+                      {fieldErrors.fechaHora}
+                    </p>
                   )}
                 </div>
 
@@ -460,52 +499,17 @@ function Reservar() {
           {step === 3 && (
             <section className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-zinc-200 sm:p-6">
               <h2 className="text-lg font-semibold text-zinc-900">
-                Método de pago y confirmación
+                Confirmar
               </h2>
 
-              <div className="mt-5">
-                <label className="mb-3 block text-sm font-medium text-zinc-700">
-                  Método de pago
-                </label>
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  {pagoOptions.map((option) => {
-                    const selected = form.metodoPago === option.value;
-                    return (
-                      <button
-                        key={option.value}
-                        type="button"
-                        onClick={() => updateField("metodoPago", option.value)}
-                        className={`rounded-2xl border-2 px-4 py-4 text-left transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500 ${
-                          selected
-                            ? "border-emerald-600 bg-emerald-50 text-emerald-700"
-                            : "border-zinc-200 bg-white text-zinc-700 hover:border-zinc-300"
-                        }`}
-                      >
-                        <span className="block text-base font-semibold">{option.label}</span>
-                        <span className="mt-1 block text-sm text-zinc-500">
-                          {option.value === "presencial"
-                            ? "Pagas cuando llegues"
-                            : "Pago digital"}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-                {fieldErrors.metodoPago && (
-                  <p className="mt-2 text-sm text-red-600">{fieldErrors.metodoPago}</p>
-                )}
-              </div>
-
-              <div className="mt-6 rounded-3xl bg-zinc-50 p-4 ring-1 ring-zinc-200">
+              <div className="mt-5 rounded-3xl bg-zinc-50 p-4 ring-1 ring-zinc-200">
                 <h3 className="text-sm font-semibold uppercase tracking-wide text-zinc-500">
                   Resumen de la reserva
                 </h3>
                 <div className="mt-4 grid gap-3 text-sm text-zinc-700 sm:grid-cols-2">
                   <div>
                     <span className="block text-zinc-500">Servicio</span>
-                    <span className="font-medium">
-                      {form.tipoServicio === "taxi" ? "Taxi" : "Camión de carga"}
-                    </span>
+                    <span className="font-medium">Taxi</span>
                   </div>
                   <div>
                     <span className="block text-zinc-500">Origen</span>
@@ -513,7 +517,15 @@ function Reservar() {
                   </div>
                   <div>
                     <span className="block text-zinc-500">Destino</span>
-                    <span className="font-medium">{destinoMostrado || "—"}</span>
+                    <span className="font-medium">{destinoMostrado}</span>
+                  </div>
+                  <div>
+                    <span className="block text-zinc-500">Pasajeros</span>
+                    <span className="font-medium">{form.pasajeros || "—"}</span>
+                  </div>
+                  <div>
+                    <span className="block text-zinc-500">Precio</span>
+                    <span className="font-medium">{precioTexto}</span>
                   </div>
                   <div>
                     <span className="block text-zinc-500">Fecha y hora</span>
@@ -532,14 +544,15 @@ function Reservar() {
                     <span className="font-medium">{form.clienteEmail || "—"}</span>
                   </div>
                   <div>
-                    <span className="block text-zinc-500">Pago</span>
-                    <span className="font-medium">
-                      {form.metodoPago === "online"
-                        ? "Pagar en línea"
-                        : "Pagar al llegar"}
-                    </span>
+                    <span className="block text-zinc-500">Método de pago</span>
+                    <span className="font-medium">Pagar al llegar</span>
                   </div>
                 </div>
+              </div>
+
+              <div className="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-4 text-sm text-emerald-800">
+                <p className="font-semibold">Método de pago</p>
+                <p className="mt-1">Pagar al llegar</p>
               </div>
             </section>
           )}
@@ -553,11 +566,11 @@ function Reservar() {
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <button
               type="button"
-              onClick={handleBack}
-              disabled={step === 1 || loading}
+              onClick={step === 1 ? () => navigate("/") : handleBack}
+              disabled={loading}
               className="rounded-2xl border border-zinc-300 bg-white px-5 py-3 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              Anterior
+              {step === 1 ? "Volver al inicio" : "Anterior"}
             </button>
 
             {step < 3 ? (
