@@ -10,7 +10,8 @@ tipoServicio: "taxi",
 origen: "",
 destino: "",
 pasajeros: "1",
-fechaHora: "",
+fecha: "",
+hora: "",
 clienteNombre: "",
 clienteTelefono: "",
 clienteEmail: "",
@@ -112,14 +113,15 @@ if (currentStep === 1) {
     !form.pasajeros ||
     Number.isNaN(pasajerosNum) ||
     pasajerosNum < 1 ||
-    pasajerosNum > 8
+    pasajerosNum > 4
   ) {
-    nextErrors.pasajeros = "Indica entre 1 y 8 pasajeros.";
+    nextErrors.pasajeros = "Indica entre 1 y 4 pasajeros.";
   }
 }
 
 if (currentStep === 2) {
-  if (!form.fechaHora) nextErrors.fechaHora = "Selecciona fecha y hora.";
+  if (!form.fecha) nextErrors.fecha = "Selecciona una fecha.";
+  if (!form.hora) nextErrors.hora = "Selecciona una hora.";
   if (!form.clienteNombre.trim()) {
     nextErrors.clienteNombre = "Escribe tu nombre completo.";
   }
@@ -189,7 +191,7 @@ try {
     tipo_servicio: form.tipoServicio,
     origen: form.origen,
     destino: form.destino,
-    fecha_hora: form.fechaHora,
+    fecha_hora: form.fecha && form.hora ? `${form.fecha}T${form.hora}` : "",
     metodo_pago: form.metodoPago,
     pasajeros: Number(form.pasajeros),
     estado: "pendiente",
@@ -216,7 +218,7 @@ try {
         cliente_telefono: payload.cliente_telefono,
         origen: payload.origen,
         destino: payload.destino,
-        fecha_hora: payload.fecha_hora,
+        fecha_hora: form.fecha && form.hora ? `${form.fecha}T${form.hora}` : "",
         tipo_servicio: payload.tipo_servicio,
         metodo_pago: payload.metodo_pago,
         pasajeros: payload.pasajeros,
@@ -235,7 +237,7 @@ try {
       cliente_telefono: payload.cliente_telefono,
       origen: payload.origen,
       destino: payload.destino,
-      fecha_hora: payload.fecha_hora,
+      fecha_hora: form.fecha && form.hora ? `${form.fecha}T${form.hora}` : "",
       tipo_servicio: payload.tipo_servicio,
       metodo_pago: payload.metodo_pago,
       pasajeros: payload.pasajeros,
@@ -420,7 +422,7 @@ Dinos dónde estás y a dónde vas. En minutos tendrás un taxi.
                 id="pasajeros"
                 type="number"
                 min="1"
-                max="8"
+                max="4"
                 step="1"
                 inputMode="numeric"
                 value={form.pasajeros}
@@ -461,25 +463,51 @@ Dinos dónde estás y a dónde vas. En minutos tendrás un taxi.
           <div className="mt-5 grid gap-5">
             <div>
               <label
-                htmlFor="fechaHora"
+                htmlFor="fecha"
                 className="mb-2 block text-sm font-medium text-zinc-700"
               >
-                Fecha y hora
+                Fecha
               </label>
               <input
-                id="fechaHora"
-                type="datetime-local"
-                value={form.fechaHora}
-                onChange={(e) => updateField("fechaHora", e.target.value)}
+                id="fecha"
+                type="date"
+                value={form.fecha}
+                onChange={(e) => updateField("fecha", e.target.value)}
                 className={`w-full rounded-2xl border bg-white px-4 py-3 text-sm outline-none transition focus:ring-2 ${
-                  fieldErrors.fechaHora
+                  fieldErrors.fecha
                     ? "border-red-300 focus:border-red-500 focus:ring-red-100"
                     : "border-zinc-200 focus:border-emerald-500 focus:ring-emerald-100"
                 }`}
               />
-              {fieldErrors.fechaHora && (
+              {fieldErrors.fecha && (
                 <p className="mt-2 text-sm text-red-600">
-                  {fieldErrors.fechaHora}
+                  {fieldErrors.fecha}
+                </p>
+              )}
+            </div>
+
+            <div>
+              <label
+                htmlFor="hora"
+                className="mb-2 block text-sm font-medium text-zinc-700"
+              >
+                Hora
+              </label>
+              <input
+                id="hora"
+                type="time"
+                step="900"
+                value={form.hora}
+                onChange={(e) => updateField("hora", e.target.value)}
+                className={`w-full rounded-2xl border bg-white px-4 py-3 text-sm outline-none transition focus:ring-2 ${
+                  fieldErrors.hora
+                    ? "border-red-300 focus:border-red-500 focus:ring-red-100"
+                    : "border-zinc-200 focus:border-emerald-500 focus:ring-emerald-100"
+                }`}
+              />
+              {fieldErrors.hora && (
+                <p className="mt-2 text-sm text-red-600">
+                  {fieldErrors.hora}
                 </p>
               )}
             </div>
@@ -595,7 +623,9 @@ Dinos dónde estás y a dónde vas. En minutos tendrás un taxi.
               </div>
               <div>
                 <span className="block text-zinc-500">Fecha y hora</span>
-                <span className="font-medium">{form.fechaHora || "—"}</span>
+                <span className="font-medium">
+                  {form.fecha && form.hora ? `${form.fecha} ${form.hora}` : "—"}
+                </span>
               </div>
               <div>
                 <span className="block text-zinc-500">Nombre</span>

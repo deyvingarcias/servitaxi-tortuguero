@@ -172,18 +172,33 @@ export default function ReservaDetalle() {
             <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-500">
               Datos de la reserva
             </h2>
-
-            <div className="mt-4 grid grid-cols-1 gap-4">
-              <InfoField label="Cliente" value={reserva?.cliente_nombre} />
-              <InfoField label="Email" value={reserva?.cliente_email} />
-              <InfoField label="Teléfono" value={reserva?.cliente_telefono} />
-              <InfoField label="Origen" value={reserva?.origen} />
-              <InfoField label="Destino" value={reserva?.destino} />
-              <InfoField label="Fecha y hora" value={reserva?.fecha_hora} />
-              <InfoField label="Tipo de servicio" value={reserva?.tipo_servicio} />
-              <InfoField label="Método de pago" value={reserva?.metodo_pago} />
-              <InfoField label="Creada el" value={reserva?.created_at} />
-            </div>
+<div className="mt-4 grid grid-cols-1 gap-4">
+  <InfoField label="Cliente" value={reserva?.cliente_nombre} />
+  <InfoField label="Email" value={reserva?.cliente_email} />
+  <InfoField label="Teléfono" value={reserva?.cliente_telefono} />
+  <InfoField label="Origen" value={reserva?.origen} />
+  <InfoField label="Destino" value={reserva?.destino} />
+  <InfoField label="Fecha y hora" value={reserva?.fecha_hora ? new Date(reserva.fecha_hora).toLocaleString("es-NI", { dateStyle: "long", timeStyle: "short" }) : "—"} />
+  <InfoField label="Tipo de servicio" value={reserva?.tipo_servicio} />
+  <InfoField label="Método de pago" value={reserva?.metodo_pago} />
+  <InfoField label="Creada el" value={reserva?.created_at} />
+ {reserva?.ubicacion_cliente && (
+    <div className="rounded-2xl bg-white p-4 ring-1 ring-zinc-200">
+      <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+        Ubicación del cliente
+      </p>
+      <a
+        href={reserva.ubicacion_cliente}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="mt-1 block break-all text-sm font-medium text-emerald-600 underline hover:text-emerald-700"
+      >
+        Ver en Google Maps
+      </a>
+    </div>
+  )}
+</div>
+            
           </section>
 
           <section className="space-y-4">
