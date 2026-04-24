@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
 
 const FILTROS = [
@@ -110,15 +110,23 @@ function Reservas() {
   return (
     <div className="min-h-screen bg-zinc-50 px-4 py-6">
       <div className="mx-auto w-full max-w-6xl rounded-3xl bg-white p-4 shadow-sm ring-1 ring-zinc-200 sm:p-6">
-        <div className="flex flex-col gap-3 border-b border-zinc-200 pb-4">
-          <div>
-            <h1 className="text-2xl font-bold text-zinc-900">Reservas</h1>
-            <p className="mt-1 text-sm text-zinc-500">
-              Gestiona y revisa todas las reservas
-            </p>
-          </div>
+       <div className="flex flex-col gap-3 border-b border-zinc-200 pb-4">
+  <div>
+    <h1 className="text-2xl font-bold text-zinc-900">Reservas</h1>
+    <p className="mt-1 text-sm text-zinc-500">
+      Gestiona y revisa todas las reservas
+    </p>
+    <div className="mt-3">
+      <Link
+        to="/admin/taxistas"
+        className="inline-flex items-center gap-1 rounded-xl bg-emerald-50 px-3 py-1.5 text-sm font-semibold text-emerald-700 ring-1 ring-emerald-200 hover:bg-emerald-100 transition"
+      >
+        🚖 Gestionar taxistas
+      </Link>
+    </div>
+  </div>
 
-          <div className="flex flex-wrap gap-2">
+  <div className="flex flex-wrap gap-2">
             {FILTROS.map((filtro) => {
               const activo = filtroEstado === filtro.value;
               return (

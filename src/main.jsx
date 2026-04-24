@@ -20,6 +20,7 @@ import ReservasAdmin from "./pages/admin/Reservas.jsx";
 import ReservaDetalle from "./pages/admin/ReservaDetalle.jsx";
 import Publicidad from "./pages/admin/Publicidad.jsx";
 import ProtectedRoute from "./components/ui/ProtectedRoute.jsx";
+import Taxistas from "./pages/admin/Taxistas.jsx";
 
 createRoot(document.getElementById("root")).render(
   <StrictMode>
@@ -40,6 +41,7 @@ createRoot(document.getElementById("root")).render(
           <Route path="/admin/reservas" element={<ReservasAdmin />} />
           <Route path="/admin/reservas/:id" element={<ReservaDetalle />} />
           <Route path="/admin/publicidad" element={<Publicidad />} />
+          <Route path="/admin/taxistas" element={<Taxistas />} />
         </Route>
 
         {/* TAXISTA PROTEGIDO */}
