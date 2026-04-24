@@ -77,7 +77,6 @@ export default async function handler(req, res) {
 
     if (
       !cliente_nombre ||
-      !cliente_email ||
       !origen ||
       !destino ||
       !fecha_hora ||
@@ -101,28 +100,33 @@ export default async function handler(req, res) {
       },
     ];
 
-    const clientHtml = `
-      <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #111827;">
-        <h2 style="color: #16a34a; margin-bottom: 16px;">Hola ${cliente_nombre},</h2>
-        <p>Gracias por tu reserva en <strong>ServiTaxi Tortuguero</strong>.</p>
-        <div style="margin: 20px 0; padding: 16px; border: 1px solid #e5e7eb; border-radius: 12px; background: #f9fafb;">
-          <p><strong>Origen:</strong> ${origen}</p>
-          <p><strong>Destino:</strong> ${destino}</p>
-          <p><strong>Fecha y hora:</strong> ${fecha_hora}</p>
-          <p><strong>Servicio:</strong> ${tipo_servicio}</p>
-          <p><strong>Pago:</strong> ${metodo_pago}</p>
-        </div>
-        <p>Lenin se pondrá en contacto contigo pronto.</p>
-      </div>
-    `;
+    const normalizedClientEmail =
+      typeof cliente_email === "string" ? cliente_email.trim() : "";
 
-    await resend.emails.send({
-      from: "onboarding@resend.dev",
-      to: cliente_email,
-      subject: "Confirmación de reserva – ServiTaxi Tortuguero",
-      html: clientHtml,
-      attachments,
-    });
+    if (normalizedClientEmail) {
+      const clientHtml = `
+        <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #111827;">
+          <h2 style="color: #16a34a; margin-bottom: 16px;">Hola ${cliente_nombre},</h2>
+          <p>Gracias por tu reserva en <strong>ServiTaxi Tortuguero</strong>.</p>
+          <div style="margin: 20px 0; padding: 16px; border: 1px solid #e5e7eb; border-radius: 12px; background: #f9fafb;">
+            <p><strong>Origen:</strong> ${origen}</p>
+            <p><strong>Destino:</strong> ${destino}</p>
+            <p><strong>Fecha y hora:</strong> ${fecha_hora}</p>
+            <p><strong>Servicio:</strong> ${tipo_servicio}</p>
+            <p><strong>Pago:</strong> ${metodo_pago}</p>
+          </div>
+          <p>Lenin se pondrá en contacto contigo pronto.</p>
+        </div>
+      `;
+
+      await resend.emails.send({
+        from: "onboarding@resend.dev",
+        to: normalizedClientEmail,
+        subject: "Confirmación de reserva – ServiTaxi Tortuguero",
+        html: clientHtml,
+        attachments,
+      });
+    }
 
     const { data: taxistas, error: taxistasError } = await supabaseAdmin
       .from("taxistas")

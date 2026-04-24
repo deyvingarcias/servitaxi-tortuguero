@@ -157,6 +157,18 @@ export default function TaxistaPanel() {
     }).format(date);
   };
 
+  const buildWhatsAppUrl = (reserva) => {
+    const telefono = String(reserva?.cliente_telefono || "")
+      .replace(/\D/g, "")
+      .trim();
+
+    const numero = telefono.startsWith("505") ? telefono : `505${telefono}`;
+
+    const mensaje = `Hola ${reserva?.cliente_nombre || ""}, soy tu taxista, voy a atender tu reserva de ${reserva?.origen || ""} a ${reserva?.destino || ""}.`;
+
+    return `https://wa.me/${numero}?text=${encodeURIComponent(mensaje)}`;
+  };
+
   if (checkingAuth || loading) {
     return (
       <div className="min-h-screen bg-zinc-50 px-4 py-10">
@@ -256,7 +268,7 @@ export default function TaxistaPanel() {
                   </div>
                 </div>
 
-                <div className="mt-6">
+                <div className="mt-6 flex flex-col gap-3 sm:flex-row">
                   <button
                     type="button"
                     onClick={() => handleAccept(reserva.id)}
@@ -265,6 +277,15 @@ export default function TaxistaPanel() {
                   >
                     {actionLoadingId === reserva.id ? "Aceptando..." : "Aceptar viaje"}
                   </button>
+
+                  <a
+                    href={buildWhatsAppUrl(reserva)}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center justify-center rounded-3xl bg-green-600 px-4 py-3 font-semibold text-white shadow-sm transition hover:bg-green-700"
+                  >
+                    WhatsApp cliente
+                  </a>
                 </div>
               </div>
             ))}
