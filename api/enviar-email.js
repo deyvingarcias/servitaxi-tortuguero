@@ -1,6 +1,12 @@
 import { Resend } from "resend";
+import { createClient } from "@supabase/supabase-js";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
+
+const supabaseAdmin = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+);
 
 function pad(value) {
   return String(value).padStart(2, "0");
@@ -60,9 +66,11 @@ export default async function handler(req, res) {
     const {
       cliente_nombre,
       cliente_email,
+      cliente_telefono,
       origen,
       destino,
       fecha_hora,
+      pasajeros,
       tipo_servicio,
       metodo_pago,
     } = req.body || {};
@@ -93,7 +101,7 @@ export default async function handler(req, res) {
       },
     ];
 
-    const html = `
+    const clientHtml = `
       <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #111827;">
         <h2 style="color: #16a34a; margin-bottom: 16px;">Hola ${cliente_nombre},</h2>
         <p>Gracias por tu reserva en <strong>ServiTaxi Tortuguero</strong>.</p>
@@ -112,9 +120,61 @@ export default async function handler(req, res) {
       from: "onboarding@resend.dev",
       to: cliente_email,
       subject: "Confirmación de reserva – ServiTaxi Tortuguero",
-      html,
+      html: clientHtml,
       attachments,
     });
+
+    const { data: taxistas, error: taxistasError } = await supabaseAdmin
+      .from("taxistas")
+      .select("email, nombre")
+      .eq("activo", true);
+
+    if (!taxistasError && Array.isArray(taxistas) && taxistas.length > 0) {
+      const taxistaHtml = (nombre = "") => `
+        <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #111827;">
+          <h2 style="color: #16a34a; margin-bottom: 16px;">Nueva solicitud de taxi</h2>
+          ${nombre ? `<p>Hola ${nombre},</p>` : ""}
+          <p>Hay una nueva solicitud pendiente de atención.</p>
+          <div style="margin: 20px 0; padding: 16px; border: 1px solid #e5e7eb; border-radius: 12px; background: #f9fafb;">
+            <p><strong>Origen:</strong> ${origen}</p>
+            <p><strong>Destino:</strong> ${destino}</p>
+            <p><strong>Fecha y hora:</strong> ${fecha_hora}</p>
+            <p><strong>Pasajeros:</strong> ${pasajeros ?? "-"}</p>
+            <p><strong>Cliente:</strong> ${cliente_nombre}</p>
+            <p><strong>Teléfono:</strong> ${cliente_telefono || "-"}</p>
+          </div>
+          <div style="margin-top: 24px;">
+            <a
+              href="https://servitaxi-tortuguero.vercel.app/taxista/panel"
+              style="display:inline-block;background:#16a34a;color:#ffffff;text-decoration:none;padding:12px 18px;border-radius:12px;font-weight:700;"
+            >
+              Ver solicitudes
+            </a>
+          </div>
+        </div>
+      `;
+
+      await Promise.all(
+        taxistas.map(async (taxista) => {
+          try {
+            await resend.emails.send({
+              from: "onboarding@resend.dev",
+              to: taxista.email,
+              subject: `Nueva solicitud de taxi — ${origen} → ${destino}`,
+              html: taxistaHtml(taxista.nombre),
+            });
+          } catch (taxistaEmailError) {
+            console.error(
+              "Error enviando email a taxista:",
+              taxista?.email,
+              taxistaEmailError
+            );
+          }
+        })
+      );
+    } else if (taxistasError) {
+      console.error("Error consultando taxistas activos:", taxistasError);
+    }
 
     return res.status(200).json({ ok: true });
   } catch (error) {

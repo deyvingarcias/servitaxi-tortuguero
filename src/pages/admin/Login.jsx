@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
+import { useNavigate, Link } from "react-router-dom";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -36,6 +36,9 @@ export default function Login() {
           <p className="mt-2 text-sm text-zinc-500">
             Acceso privado para gestionar reservas
           </p>
+          <Link to="/" className="mt-2 text-sm text-zinc-400 hover:text-zinc-600">
+  ← Volver al inicio
+</Link>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">

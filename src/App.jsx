@@ -173,13 +173,20 @@ function App() {
             <p className="font-semibold text-zinc-900">ServiTaxi Tortuguero</p>
             <p>Tortuguero, Nicaragua</p>
           </div>
-
-          <Link to="/admin/reservas" className="text-xs text-zinc-400 hover:text-zinc-600">
-            Admin
-          </Link>
+          <div className="flex items-center gap-4">
+            <Link to="/admin/reservas" className="text-xs text-zinc-400 hover:text-zinc-600">
+              Admin
+            </Link>
+            <Link to="/taxista/login" className="text-xs text-zinc-400 hover:text-zinc-600">
+              Acceso taxistas
+            </Link>
+            <Link to="/registro-taxista" className="text-xs text-zinc-400 hover:text-zinc-600">
+              Registro taxista
+            </Link>
+          </div>
         </div>
       </footer>
-    </div>
+    </div>  
   );
 }
 
