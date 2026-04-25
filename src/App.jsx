@@ -1,4 +1,6 @@
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { supabase } from "./lib/supabase";
 
 function App() {
   return (
@@ -136,6 +138,8 @@ function App() {
           </div>
         </section>
 
+        <PublicidadSection />
+
         {/* CTA FINAL */}
         <section className="px-4 py-16 sm:px-6 lg:px-8">
           <div className="mx-auto w-full max-w-6xl rounded-3xl bg-zinc-950 px-6 py-12 text-white sm:px-8 sm:py-14">
@@ -181,6 +185,81 @@ function App() {
         </div>
       </footer>
     </div>
+  );
+}
+
+function PublicidadSection() {
+  const [anuncios, setAnuncios] = useState([]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadPublicidad = async () => {
+      const { data, error } = await supabase
+        .from("publicidad")
+        .select("id, titulo, descripcion, imagen_url, contacto, activo, created_at")
+        .eq("activo", true)
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        return;
+      }
+
+      if (!mounted) return;
+      setAnuncios(data ?? []);
+    };
+
+    loadPublicidad();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  if (anuncios.length === 0) return null;
+
+  return (
+    <section className="px-4 py-16 sm:px-6 lg:px-8">
+      <div className="mx-auto w-full max-w-6xl">
+        <div className="max-w-2xl">
+          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-red-600">
+            Publicidad
+          </p>
+          <h2 className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">
+            Repuestos y servicios
+          </h2>
+        </div>
+
+        <div className="mt-8 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+          {anuncios.map((anuncio) => (
+            <article
+              key={anuncio.id}
+              className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-zinc-200"
+            >
+              {anuncio.imagen_url ? (
+                <img
+                  src={anuncio.imagen_url}
+                  alt={anuncio.titulo || "Publicidad"}
+                  className="mb-4 h-48 w-full rounded-2xl object-cover"
+                />
+              ) : null}
+
+              <h3 className="text-xl font-bold text-zinc-900">
+                {anuncio.titulo || "Sin título"}
+              </h3>
+
+              <p className="mt-2 text-sm leading-6 text-zinc-600">
+                {anuncio.descripcion || "Sin descripción"}
+              </p>
+
+              <p className="mt-4 text-sm font-semibold text-zinc-700">
+                📞 {anuncio.contacto || "Sin contacto"}
+              </p>
+            </article>
+          ))}
+        </div>
+      </div>
+    </section>
   );
 }
 
