@@ -1,16 +1,22 @@
 // src/pages/taxista/Panel.jsx
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
 
+const ALARM_INTERVAL_MS = 8000;
+const POLLING_MS = 10000;
+
 export default function TaxistaPanel() {
   const navigate = useNavigate();
+  const audioContextRef = useRef(null);
+
   const [loading, setLoading] = useState(true);
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [taxistaNombre, setTaxistaNombre] = useState("");
   const [reservas, setReservas] = useState([]);
   const [error, setError] = useState("");
   const [actionLoadingId, setActionLoadingId] = useState(null);
+  const [alarmSilenced, setAlarmSilenced] = useState(false);
 
   const pendingReservas = useMemo(() => reservas, [reservas]);
 
@@ -28,6 +34,50 @@ export default function TaxistaPanel() {
     }
 
     setReservas(data || []);
+  }, []);
+
+  const playAlarmBeep = useCallback(async () => {
+    if (typeof window === "undefined") return;
+
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) return;
+
+    let audioContext = audioContextRef.current;
+
+    if (!audioContext) {
+      audioContext = new AudioContextClass();
+      audioContextRef.current = audioContext;
+    }
+
+    try {
+      if (audioContext.state === "suspended") {
+        await audioContext.resume();
+      }
+
+      const now = audioContext.currentTime;
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+
+      oscillator.type = "sine";
+      oscillator.frequency.setValueAtTime(880, now);
+
+      gainNode.gain.setValueAtTime(0.0001, now);
+      gainNode.gain.exponentialRampToValueAtTime(0.25, now + 0.01);
+      gainNode.gain.exponentialRampToValueAtTime(0.0001, now + 0.35);
+
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+
+      oscillator.start(now);
+      oscillator.stop(now + 0.4);
+
+      oscillator.onended = () => {
+        oscillator.disconnect();
+        gainNode.disconnect();
+      };
+    } catch {
+      // Si el navegador bloquea el audio, simplemente no se reproduce.
+    }
   }, []);
 
   useEffect(() => {
@@ -95,17 +145,42 @@ export default function TaxistaPanel() {
       } catch {
         // silencioso para el polling
       }
-    }, 30000);
+    }, POLLING_MS);
 
     return () => {
       mounted = false;
       if (intervalId) clearInterval(intervalId);
+
+      const ctx = audioContextRef.current;
+      if (ctx && ctx.state !== "closed") {
+        ctx.close().catch(() => {});
+      }
     };
   }, [loadReservas, navigate]);
+
+  useEffect(() => {
+    const shouldPlayAlarm = pendingReservas.length > 0 && !alarmSilenced;
+
+    if (!shouldPlayAlarm) {
+      return;
+    }
+
+    playAlarmBeep();
+
+    const alarmIntervalId = setInterval(() => {
+      playAlarmBeep();
+    }, ALARM_INTERVAL_MS);
+
+    return () => clearInterval(alarmIntervalId);
+  }, [alarmSilenced, pendingReservas.length, playAlarmBeep]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
     navigate("/taxista/login", { replace: true });
+  };
+
+  const handleToggleAlarm = () => {
+    setAlarmSilenced((prev) => !prev);
   };
 
   const handleAccept = async (reservaId) => {
@@ -194,13 +269,23 @@ export default function TaxistaPanel() {
             </h1>
           </div>
 
-          <button
-            type="button"
-            onClick={handleLogout}
-            className="inline-flex items-center justify-center rounded-3xl bg-red-600 px-4 py-3 font-semibold text-white shadow-sm transition hover:bg-red-700"
-          >
-            Cerrar sesión
-          </button>
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <button
+              type="button"
+              onClick={handleToggleAlarm}
+              className="inline-flex items-center justify-center rounded-3xl border border-zinc-200 bg-white px-4 py-3 font-semibold text-zinc-700 shadow-sm transition hover:bg-zinc-50"
+            >
+              {alarmSilenced ? "🔕 Activar alarma" : "🔔 Silenciar alarma"}
+            </button>
+
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="inline-flex items-center justify-center rounded-3xl bg-red-600 px-4 py-3 font-semibold text-white shadow-sm transition hover:bg-red-700"
+            >
+              Cerrar sesión
+            </button>
+          </div>
         </div>
 
         {error ? (

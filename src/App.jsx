@@ -174,19 +174,13 @@ function App() {
             <p>Tortuguero, Nicaragua</p>
           </div>
           <div className="flex items-center gap-4">
-            <Link to="/admin/reservas" className="text-xs text-zinc-400 hover:text-zinc-600">
+            <Link to="/admin/reservas" className="text-xs text-zinc-300">
               Admin
-            </Link>
-            <Link to="/taxista/login" className="text-xs text-zinc-400 hover:text-zinc-600">
-              Acceso taxistas
-            </Link>
-            <Link to="/registro-taxista" className="text-xs text-zinc-400 hover:text-zinc-600">
-              Registro taxista
             </Link>
           </div>
         </div>
       </footer>
-    </div>  
+    </div>
   );
 }
 
