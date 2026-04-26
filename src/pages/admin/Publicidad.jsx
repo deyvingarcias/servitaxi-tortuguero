@@ -19,6 +19,8 @@ function Publicidad() {
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState(emptyForm);
   const [actionLoadingId, setActionLoadingId] = useState(null);
+  const [imagenFile, setImagenFile] = useState(null);
+  const [uploadingImg, setUploadingImg] = useState(false);
 
   const isEditing = useMemo(() => Boolean(editingId), [editingId]);
 
@@ -51,12 +53,14 @@ function Publicidad() {
     setForm(emptyForm);
     setEditingId(null);
     setFormVisible(false);
+    setImagenFile(null);
   };
 
   const handleNew = () => {
     setError("");
     setEditingId(null);
     setForm(emptyForm);
+    setImagenFile(null);
     setFormVisible(true);
   };
 
@@ -64,6 +68,7 @@ function Publicidad() {
     setError("");
     setEditingId(anuncio.id);
     setFormVisible(true);
+    setImagenFile(null);
     setForm({
       titulo: anuncio.titulo || "",
       descripcion: anuncio.descripcion || "",
@@ -81,16 +86,40 @@ function Publicidad() {
     }));
   };
 
+  const handleImagenChange = (e) => {
+    const file = e.target.files[0];
+    if (file) setImagenFile(file);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSaving(true);
     setError("");
 
     try {
+      let imagen_url = form.imagen_url;
+
+      if (imagenFile) {
+        setUploadingImg(true);
+        const fileName = `${Date.now()}-${imagenFile.name}`;
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from("publicidad")
+          .upload(`anuncios/${fileName}`, imagenFile);
+        setUploadingImg(false);
+
+        if (uploadError) throw new Error("Error al subir la imagen: " + uploadError.message);
+
+        const { data: urlData } = supabase.storage
+          .from("publicidad")
+          .getPublicUrl(uploadData.path);
+
+        imagen_url = urlData.publicUrl;
+      }
+
       const payload = {
         titulo: form.titulo.trim(),
         descripcion: form.descripcion.trim(),
-        imagen_url: form.imagen_url.trim(),
+        imagen_url: imagen_url,
         contacto: form.contacto.trim(),
         activo: Boolean(form.activo),
       };
@@ -120,6 +149,7 @@ function Publicidad() {
       setError(err?.message || "No se pudo guardar el anuncio.");
     } finally {
       setSaving(false);
+      setUploadingImg(false);
     }
   };
 
@@ -177,6 +207,10 @@ function Publicidad() {
       setActionLoadingId(null);
     }
   };
+
+  const previewSrc = imagenFile
+    ? URL.createObjectURL(imagenFile)
+    : form.imagen_url || null;
 
   if (loading) {
     return (
@@ -304,16 +338,34 @@ function Publicidad() {
               <div className="grid gap-4 md:grid-cols-2">
                 <div>
                   <label className="mb-1 block text-sm font-semibold text-zinc-700">
-                    Imagen URL
+                    📷 Imagen
                   </label>
-                  <input
-                    type="url"
-                    name="imagen_url"
-                    value={form.imagen_url}
-                    onChange={handleChange}
-                    className="w-full rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"
-                    placeholder="https://..."
-                  />
+                  <label className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-zinc-300 bg-white px-4 py-4 text-sm font-semibold text-zinc-500 transition hover:border-emerald-400 hover:bg-emerald-50 hover:text-emerald-700">
+                    <span>
+                      {imagenFile
+                        ? `✅ ${imagenFile.name}`
+                        : form.imagen_url
+                          ? "🔄 Cambiar imagen"
+                          : "📁 Subir imagen desde móvil o PC"}
+                    </span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImagenChange}
+                      className="hidden"
+                    />
+                  </label>
+                  <p className="mt-1 text-xs text-zinc-400">
+                    JPG, PNG, WebP... se sube automáticamente al guardar.
+                  </p>
+
+                  {previewSrc && (
+                    <img
+                      src={previewSrc}
+                      alt="Preview"
+                      className="mt-3 h-32 w-full rounded-2xl object-cover ring-1 ring-zinc-200"
+                    />
+                  )}
                 </div>
 
                 <div>
@@ -346,14 +398,16 @@ function Publicidad() {
             <div className="mt-5 flex flex-wrap gap-3">
               <button
                 type="submit"
-                disabled={saving}
+                disabled={saving || uploadingImg}
                 className="inline-flex items-center justify-center rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-70"
               >
-                {saving
-                  ? "Guardando..."
-                  : isEditing
-                    ? "Guardar cambios"
-                    : "Crear anuncio"}
+                {uploadingImg
+                  ? "Subiendo imagen..."
+                  : saving
+                    ? "Guardando..."
+                    : isEditing
+                      ? "Guardar cambios"
+                      : "Crear anuncio"}
               </button>
 
               <button
@@ -373,7 +427,7 @@ function Publicidad() {
               No hay anuncios todavía
             </p>
             <p className="mt-1 text-sm text-zinc-500">
-              Pulsa “Nuevo anuncio” para crear el primero.
+              Pulsa "Nuevo anuncio" para crear el primero.
             </p>
           </div>
         ) : (
