@@ -13,6 +13,12 @@ export default function TaxistaPanel() {
   const [loading, setLoading] = useState(true);
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [taxistaNombre, setTaxistaNombre] = useState("");
+  const [taxistaData, setTaxistaData] = useState({
+    nombre: "",
+    placa: "",
+    color: "",
+    telefono: "",
+  });
   const [reservas, setReservas] = useState([]);
   const [error, setError] = useState("");
   const [actionLoadingId, setActionLoadingId] = useState(null);
@@ -105,7 +111,7 @@ export default function TaxistaPanel() {
 
         const { data: taxista, error: taxistaError } = await supabase
           .from("taxistas")
-          .select("nombre, email, activo")
+          .select("nombre, email, activo, placa, color, telefono")
           .ilike("email", email)
           .maybeSingle();
 
@@ -126,6 +132,13 @@ export default function TaxistaPanel() {
         if (!mounted) return;
 
         setTaxistaNombre(taxista.nombre || "");
+        setTaxistaData({
+          nombre: taxista.nombre || "",
+          placa: taxista.placa || "",
+          color: taxista.color || "",
+          telefono: taxista.telefono || "",
+        });
+
         await loadReservas();
       } catch (err) {
         if (!mounted) return;
@@ -196,7 +209,7 @@ export default function TaxistaPanel() {
 
       const { data: taxista, error: taxistaError } = await supabase
         .from("taxistas")
-        .select("nombre, email")
+        .select("nombre, email, placa, color, telefono")
         .ilike("email", email)
         .maybeSingle();
 
@@ -213,6 +226,29 @@ export default function TaxistaPanel() {
         .eq("estado", "pendiente");
 
       if (updateError) throw updateError;
+
+      fetch("/api/confirmar-viaje", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          reserva_id: reservaId,
+          taxista_nombre: taxista.nombre || "",
+          taxista_placa: taxista.placa || "",
+          taxista_color: taxista.color || "",
+          taxista_telefono: taxista.telefono || "",
+        }),
+      })
+        .then(async (response) => {
+          if (!response.ok) {
+            const text = await response.text().catch(() => "");
+            console.error("Error enviando email de confirmación:", text);
+          }
+        })
+        .catch((fetchError) => {
+          console.error("Error enviando email de confirmación:", fetchError);
+        });
 
       setReservas((prev) => prev.filter((r) => r.id !== reservaId));
     } catch (err) {
@@ -337,9 +373,7 @@ export default function TaxistaPanel() {
                   </div>
 
                   <div>
-                    <p className="text-sm font-medium text-zinc-500">
-                      Cliente
-                    </p>
+                    <p className="text-sm font-medium text-zinc-500">Cliente</p>
                     <p className="mt-1 text-base font-semibold text-zinc-900">
                       {reserva.cliente_nombre}
                     </p>
@@ -360,7 +394,9 @@ export default function TaxistaPanel() {
                     disabled={actionLoadingId === reserva.id}
                     className="inline-flex items-center justify-center rounded-3xl bg-emerald-600 px-4 py-3 font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-70"
                   >
-                    {actionLoadingId === reserva.id ? "Aceptando..." : "Aceptar viaje"}
+                    {actionLoadingId === reserva.id
+                      ? "Aceptando..."
+                      : "Aceptar viaje"}
                   </button>
 
                   <a

@@ -9,6 +9,7 @@ export default function RegistroTaxista() {
     telefono: "",
     email: "",
     placa: "",
+    color: "",
     numero_taxi: "",
   });
 
@@ -27,7 +28,8 @@ export default function RegistroTaxista() {
       next.email = "Introduce un email válido.";
     }
     if (!form.placa.trim()) next.placa = "La placa del vehículo es obligatoria.";
-    if (!form.numero_taxi.trim()) next.numero_taxi = "El número de taxi es obligatorio.";
+    if (!form.numero_taxi.trim())
+      next.numero_taxi = "El número de taxi es obligatorio.";
 
     return next;
   }, [form]);
@@ -48,6 +50,7 @@ export default function RegistroTaxista() {
       telefono: true,
       email: true,
       placa: true,
+      color: true,
       numero_taxi: true,
     });
 
@@ -68,6 +71,7 @@ export default function RegistroTaxista() {
           telefono: form.telefono.trim(),
           email: form.email.trim().toLowerCase(),
           placa: form.placa.trim(),
+          color: form.color.trim(),
           numero_taxi: form.numero_taxi.trim(),
           activo: true,
         },
@@ -83,6 +87,7 @@ export default function RegistroTaxista() {
         telefono: "",
         email: "",
         placa: "",
+        color: "",
         numero_taxi: "",
       });
       setTouched({});
@@ -113,7 +118,8 @@ export default function RegistroTaxista() {
               Crea tu cuenta de conductor
             </h1>
             <p className="mt-2 text-sm text-zinc-600">
-              Completa tus datos para que el administrador revise y active tu cuenta.
+              Completa tus datos para que el administrador revise y active tu
+              cuenta.
             </p>
           </div>
 
@@ -191,6 +197,18 @@ export default function RegistroTaxista() {
             </div>
 
             <div>
+              <label className={labelClass}>Color del vehículo</label>
+              <input
+                value={form.color}
+                onChange={(e) => handleChange("color", e.target.value)}
+                onBlur={() => handleBlur("color")}
+                className={inputClass}
+                placeholder="Ej. Blanco, rojo, azul..."
+                type="text"
+              />
+            </div>
+
+            <div>
               <label className={labelClass}>Número de taxi</label>
               <input
                 value={form.numero_taxi}
@@ -201,7 +219,9 @@ export default function RegistroTaxista() {
                 type="text"
               />
               {touched.numero_taxi && errors.numero_taxi ? (
-                <p className="mt-2 text-sm text-red-600">{errors.numero_taxi}</p>
+                <p className="mt-2 text-sm text-red-600">
+                  {errors.numero_taxi}
+                </p>
               ) : null}
             </div>
 

@@ -194,6 +194,12 @@ function Taxistas() {
                   </p>
                   <p>
                     <span className="font-semibold text-zinc-900">
+                      Color del vehículo:
+                    </span>{" "}
+                    {taxista.color?.trim?.() ? taxista.color : "—"}
+                  </p>
+                  <p>
+                    <span className="font-semibold text-zinc-900">
                       Número de taxi:
                     </span>{" "}
                     {taxista.numero_taxi || "—"}
