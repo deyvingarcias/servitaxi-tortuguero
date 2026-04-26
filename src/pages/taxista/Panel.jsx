@@ -21,8 +21,9 @@ export default function TaxistaPanel() {
   });
   const [reservas, setReservas] = useState([]);
   const [viajesAceptados, setViajesAceptados] = useState([]);
+  const [historial, setHistorial] = useState([]);
   const [error, setError] = useState("");
-  const [actionLoadingId, setActionLoadingId] = useState(null);
+  const [actionLoading, setActionLoading] = useState(null); // { id, type: 'accept' | 'complete' } | null
   const [alarmSilenced, setAlarmSilenced] = useState(false);
 
   const pendingReservas = useMemo(() => reservas, [reservas]);
@@ -63,6 +64,28 @@ export default function TaxistaPanel() {
     }
 
     setViajesAceptados(data || []);
+  }, []);
+
+  const loadHistorial = useCallback(async (nombreTaxista) => {
+    if (!nombreTaxista) {
+      setHistorial([]);
+      return;
+    }
+
+    const { data, error: fetchError } = await supabase
+      .from("reservas")
+      .select(
+        "id, origen, destino, fecha_hora, pasajeros, cliente_nombre, cliente_telefono"
+      )
+      .eq("estado", "completada")
+      .eq("conductor", nombreTaxista)
+      .order("fecha_hora", { ascending: false });
+
+    if (fetchError) {
+      throw fetchError;
+    }
+
+    setHistorial(data || []);
   }, []);
 
   const playAlarmBeep = useCallback(async () => {
@@ -111,7 +134,6 @@ export default function TaxistaPanel() {
 
   useEffect(() => {
     let mounted = true;
-    let intervalId = null;
 
     const init = async () => {
       setCheckingAuth(true);
@@ -164,8 +186,11 @@ export default function TaxistaPanel() {
           telefono: taxista.telefono || "",
         });
 
-        await loadReservas();
-        await loadViajesAceptados(nombreActivo);
+        await Promise.all([
+          loadReservas(),
+          loadViajesAceptados(nombreActivo),
+          loadHistorial(nombreActivo),
+        ]);
       } catch (err) {
         if (!mounted) return;
         setError(err?.message || "No se pudo cargar el panel.");
@@ -178,27 +203,33 @@ export default function TaxistaPanel() {
 
     init();
 
-    intervalId = setInterval(async () => {
-      try {
-        await loadReservas();
-        if (taxistaNombre) {
-          await loadViajesAceptados(taxistaNombre);
-        }
-      } catch {
-        // silencioso para el polling
-      }
-    }, POLLING_MS);
-
     return () => {
       mounted = false;
-      if (intervalId) clearInterval(intervalId);
 
       const ctx = audioContextRef.current;
       if (ctx && ctx.state !== "closed") {
         ctx.close().catch(() => {});
       }
     };
-  }, [loadReservas, loadViajesAceptados, navigate, taxistaNombre]);
+  }, [loadHistorial, loadReservas, loadViajesAceptados, navigate]);
+
+  useEffect(() => {
+    if (!taxistaNombre) return;
+
+    const intervalId = setInterval(async () => {
+      try {
+        await Promise.all([
+          loadReservas(),
+          loadViajesAceptados(taxistaNombre),
+          loadHistorial(taxistaNombre),
+        ]);
+      } catch {
+        // silencioso para el polling
+      }
+    }, POLLING_MS);
+
+    return () => clearInterval(intervalId);
+  }, [loadHistorial, loadReservas, loadViajesAceptados, taxistaNombre]);
 
   useEffect(() => {
     const shouldPlayAlarm = pendingReservas.length > 0 && !alarmSilenced;
@@ -225,8 +256,15 @@ export default function TaxistaPanel() {
     setAlarmSilenced((prev) => !prev);
   };
 
+  const refreshDriverLists = async (nombreTaxista) => {
+    await Promise.all([
+      loadViajesAceptados(nombreTaxista),
+      loadHistorial(nombreTaxista),
+    ]);
+  };
+
   const handleAccept = async (reservaId) => {
-    setActionLoadingId(reservaId);
+    setActionLoading({ id: reservaId, type: "accept" });
     setError("");
 
     try {
@@ -280,11 +318,38 @@ export default function TaxistaPanel() {
         });
 
       setReservas((prev) => prev.filter((r) => r.id !== reservaId));
-      await loadViajesAceptados(taxista.nombre || taxistaNombre);
+      await refreshDriverLists(taxista.nombre || taxistaNombre);
     } catch (err) {
       setError(err?.message || "No se pudo aceptar el viaje.");
     } finally {
-      setActionLoadingId(null);
+      setActionLoading(null);
+    }
+  };
+
+  const handleComplete = async (reservaId) => {
+    setActionLoading({ id: reservaId, type: "complete" });
+    setError("");
+
+    try {
+      const nombreConductor = taxistaNombre?.trim();
+      if (!nombreConductor) throw new Error("No se pudo identificar al conductor.");
+
+      const { error: updateError } = await supabase
+        .from("reservas")
+        .update({
+          estado: "completada",
+        })
+        .eq("id", reservaId)
+        .eq("estado", "confirmada")
+        .eq("conductor", nombreConductor);
+
+      if (updateError) throw updateError;
+
+      await refreshDriverLists(nombreConductor);
+    } catch (err) {
+      setError(err?.message || "No se pudo marcar el viaje como completado.");
+    } finally {
+      setActionLoading(null);
     }
   };
 
@@ -310,94 +375,188 @@ export default function TaxistaPanel() {
     return `https://wa.me/${numero}?text=${encodeURIComponent(mensaje)}`;
   };
 
-  const renderReservaCard = (reserva, { accepted = false } = {}) => (
-    <div
-      key={reserva.id}
-      className={[
-        "rounded-3xl bg-white p-6 shadow-sm ring-1 transition",
-        accepted ? "ring-blue-200" : "ring-zinc-200",
-      ].join(" ")}
-    >
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div>
-          <p className="text-sm font-medium text-zinc-500">Origen</p>
-          <p className="mt-1 text-base font-semibold text-zinc-900">
-            {reserva.origen}
-          </p>
+  const isActionLoading = (reservaId, type) =>
+    actionLoading?.id === reservaId && actionLoading?.type === type;
+
+  const renderReservaCard = (reserva, { accepted = false, history = false } = {}) => {
+    const isHistory = history === true;
+
+    return (
+      <div
+        key={reserva.id}
+        className={[
+          "rounded-3xl bg-white p-6 shadow-sm ring-1 transition",
+          isHistory ? "bg-zinc-50 ring-zinc-100" : accepted ? "ring-blue-200" : "ring-zinc-200",
+        ].join(" ")}
+      >
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <p
+              className={[
+                "text-sm font-medium",
+                isHistory ? "text-zinc-400" : "text-zinc-500",
+              ].join(" ")}
+            >
+              Origen
+            </p>
+            <p
+              className={[
+                "mt-1 text-base font-semibold",
+                isHistory ? "text-zinc-700" : "text-zinc-900",
+              ].join(" ")}
+            >
+              {reserva.origen}
+            </p>
+          </div>
+
+          <div>
+            <p
+              className={[
+                "text-sm font-medium",
+                isHistory ? "text-zinc-400" : "text-zinc-500",
+              ].join(" ")}
+            >
+              Destino
+            </p>
+            <p
+              className={[
+                "mt-1 text-base font-semibold",
+                isHistory ? "text-zinc-700" : "text-zinc-900",
+              ].join(" ")}
+            >
+              {reserva.destino}
+            </p>
+          </div>
+
+          <div>
+            <p
+              className={[
+                "text-sm font-medium",
+                isHistory ? "text-zinc-400" : "text-zinc-500",
+              ].join(" ")}
+            >
+              Fecha y hora
+            </p>
+            <p
+              className={[
+                "mt-1 text-base font-semibold",
+                isHistory ? "text-zinc-700" : "text-zinc-900",
+              ].join(" ")}
+            >
+              {formatFecha(reserva.fecha_hora)}
+            </p>
+          </div>
+
+          <div>
+            <p
+              className={[
+                "text-sm font-medium",
+                isHistory ? "text-zinc-400" : "text-zinc-500",
+              ].join(" ")}
+            >
+              Pasajeros
+            </p>
+            <p
+              className={[
+                "mt-1 text-base font-semibold",
+                isHistory ? "text-zinc-700" : "text-zinc-900",
+              ].join(" ")}
+            >
+              {reserva.pasajeros}
+            </p>
+          </div>
+
+          <div>
+            <p
+              className={[
+                "text-sm font-medium",
+                isHistory ? "text-zinc-400" : "text-zinc-500",
+              ].join(" ")}
+            >
+              Cliente
+            </p>
+            <p
+              className={[
+                "mt-1 text-base font-semibold",
+                isHistory ? "text-zinc-700" : "text-zinc-900",
+              ].join(" ")}
+            >
+              {reserva.cliente_nombre}
+            </p>
+          </div>
+
+          <div>
+            <p
+              className={[
+                "text-sm font-medium",
+                isHistory ? "text-zinc-400" : "text-zinc-500",
+              ].join(" ")}
+            >
+              Teléfono
+            </p>
+            <p
+              className={[
+                "mt-1 text-base font-semibold",
+                isHistory ? "text-zinc-700" : "text-zinc-900",
+              ].join(" ")}
+            >
+              {reserva.cliente_telefono}
+            </p>
+          </div>
         </div>
 
-        <div>
-          <p className="text-sm font-medium text-zinc-500">Destino</p>
-          <p className="mt-1 text-base font-semibold text-zinc-900">
-            {reserva.destino}
-          </p>
-        </div>
-
-        <div>
-          <p className="text-sm font-medium text-zinc-500">Fecha y hora</p>
-          <p className="mt-1 text-base font-semibold text-zinc-900">
-            {formatFecha(reserva.fecha_hora)}
-          </p>
-        </div>
-
-        <div>
-          <p className="text-sm font-medium text-zinc-500">Pasajeros</p>
-          <p className="mt-1 text-base font-semibold text-zinc-900">
-            {reserva.pasajeros}
-          </p>
-        </div>
-
-        <div>
-          <p className="text-sm font-medium text-zinc-500">Cliente</p>
-          <p className="mt-1 text-base font-semibold text-zinc-900">
-            {reserva.cliente_nombre}
-          </p>
-        </div>
-
-        <div>
-          <p className="text-sm font-medium text-zinc-500">Teléfono</p>
-          <p className="mt-1 text-base font-semibold text-zinc-900">
-            {reserva.cliente_telefono}
-          </p>
-        </div>
-      </div>
-
-      {reserva.ubicacion_cliente ? (
-        <div className="mt-6">
-          <a
-            href={reserva.ubicacion_cliente}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex items-center justify-center rounded-3xl bg-green-600 px-4 py-3 font-semibold text-white shadow-sm transition hover:bg-green-700"
-          >
-            📍 Ver ubicación del cliente
-          </a>
-        </div>
-      ) : null}
-
-      <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-        {!accepted ? (
-          <button
-            type="button"
-            onClick={() => handleAccept(reserva.id)}
-            disabled={actionLoadingId === reserva.id}
-            className="inline-flex items-center justify-center rounded-3xl bg-emerald-600 px-4 py-3 font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-70"
-          >
-            {actionLoadingId === reserva.id ? "Aceptando..." : "Aceptar viaje"}
-          </button>
+        {!isHistory && reserva.ubicacion_cliente ? (
+          <div className="mt-6">
+            <a
+              href={reserva.ubicacion_cliente}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center justify-center rounded-3xl bg-green-600 px-4 py-3 font-semibold text-white shadow-sm transition hover:bg-green-700"
+            >
+              📍 Ver ubicación del cliente
+            </a>
+          </div>
         ) : null}
 
-        <a
-          href={buildWhatsAppUrl(reserva)}
-          target="_blank"
-          rel="noreferrer"
-          className="inline-flex items-center justify-center rounded-3xl bg-green-600 px-4 py-3 font-semibold text-white shadow-sm transition hover:bg-green-700"
-        >
-          WhatsApp cliente
-        </a>
+        {!isHistory ? (
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+            {!accepted ? (
+              <button
+                type="button"
+                onClick={() => handleAccept(reserva.id)}
+                disabled={isActionLoading(reserva.id, "accept")}
+                className="inline-flex items-center justify-center rounded-3xl bg-emerald-600 px-4 py-3 font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-70"
+              >
+                {isActionLoading(reserva.id, "accept")
+                  ? "Aceptando..."
+                  : "Aceptar viaje"}
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => handleComplete(reserva.id)}
+                disabled={isActionLoading(reserva.id, "complete")}
+                className="inline-flex items-center justify-center rounded-3xl bg-emerald-600 px-4 py-3 font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-70"
+              >
+                {isActionLoading(reserva.id, "complete")
+                  ? "Completando..."
+                  : "✅ Marcar como completado"}
+              </button>
+            )}
+
+            <a
+              href={buildWhatsAppUrl(reserva)}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center justify-center rounded-3xl bg-green-600 px-4 py-3 font-semibold text-white shadow-sm transition hover:bg-green-700"
+            >
+              WhatsApp cliente
+            </a>
+          </div>
+        ) : null}
       </div>
-    </div>
-  );
+    );
+  };
 
   if (checkingAuth || loading) {
     return (
@@ -493,6 +652,29 @@ export default function TaxistaPanel() {
               <div className="grid gap-4">
                 {viajesAceptados.map((reserva) =>
                   renderReservaCard(reserva, { accepted: true })
+                )}
+              </div>
+            )}
+          </section>
+
+          <section>
+            <div className="mb-4 flex items-center gap-3">
+              <p className="inline-flex rounded-full bg-zinc-100 px-3 py-1 text-sm font-medium text-zinc-600">
+                Historial
+              </p>
+              <h2 className="text-xl font-semibold text-zinc-900">Historial</h2>
+            </div>
+
+            {historial.length === 0 ? (
+              <div className="rounded-3xl bg-white p-8 text-center shadow-sm ring-1 ring-zinc-100">
+                <p className="text-lg font-medium text-zinc-900">
+                  No tienes viajes completados todavía
+                </p>
+              </div>
+            ) : (
+              <div className="grid gap-4">
+                {historial.map((reserva) =>
+                  renderReservaCard(reserva, { history: true })
                 )}
               </div>
             )}
