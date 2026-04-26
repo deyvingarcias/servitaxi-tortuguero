@@ -10,7 +10,8 @@ export default function TaxistaLogin() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const handleLogin = async () => {
+  const handleLogin = async (e) => {
+    e.preventDefault();
     setError("");
     setLoading(true);
 
@@ -62,51 +63,52 @@ export default function TaxistaLogin() {
             </div>
           ) : null}
 
-          <div className="grid gap-5">
-            <div>
-              <label className={labelClass}>Email</label>
-              <input
-                className={inputClass}
-                type="email"
-                name="email"
-                autoComplete="email"
-                placeholder="tu@email.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
-            </div>
+          <form onSubmit={handleLogin}>
+            <div className="grid gap-5">
+              <div>
+                <label className={labelClass}>Email</label>
+                <input
+                  className={inputClass}
+                  type="email"
+                  name="email"
+                  autoComplete="email"
+                  placeholder="tu@email.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
+              </div>
 
-            <div>
-              <label className={labelClass}>Contraseña</label>
-              <input
-                className={inputClass}
-                type="password"
-                name="password"
-                autoComplete="current-password"
-                placeholder="Tu contraseña"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-            </div>
+              <div>
+                <label className={labelClass}>Contraseña</label>
+                <input
+                  className={inputClass}
+                  type="password"
+                  name="password"
+                  autoComplete="current-password"
+                  placeholder="Tu contraseña"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+              </div>
 
-            <button
-              type="button"
-              onClick={handleLogin}
-              disabled={loading}
-              className="inline-flex w-full items-center justify-center rounded-3xl bg-emerald-600 px-4 py-3 font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-70"
-            >
-              {loading ? "Entrando..." : "Iniciar sesión"}
-            </button>
-
-            <div className="text-center text-sm text-zinc-600">
-              <Link
-                to="/registro-taxista"
-                className="font-medium text-red-600 transition hover:text-red-700"
+              <button
+                type="submit"
+                disabled={loading}
+                className="inline-flex w-full items-center justify-center rounded-3xl bg-emerald-600 px-4 py-3 font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-70"
               >
-                ¿No tienes cuenta? Regístrate
-              </Link>
+                {loading ? "Entrando..." : "Iniciar sesión"}
+              </button>
+
+              <div className="text-center text-sm text-zinc-600">
+                <Link
+                  to="/registro-taxista"
+                  className="font-medium text-red-600 transition hover:text-red-700"
+                >
+                  ¿No tienes cuenta? Regístrate
+                </Link>
+              </div>
             </div>
-          </div>
+          </form>
         </div>
       </div>
     </div>
