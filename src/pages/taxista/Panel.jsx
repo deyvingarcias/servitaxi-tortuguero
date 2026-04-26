@@ -380,8 +380,25 @@ export default function TaxistaPanel() {
   const isActionLoading = (reservaId, type) =>
     actionLoading?.id === reservaId && actionLoading?.type === type;
 
-  const renderReservaCard = (reserva, { accepted = false, history = false } = {}) => {
+  const renderReservaCard = (
+    reserva,
+    { accepted = false, history = false } = {}
+  ) => {
     const isHistory = history === true;
+
+    const ubicacionRaw = String(reserva?.ubicacion_cliente || "").trim();
+    const partesUbicacion = ubicacionRaw
+      ? ubicacionRaw.split(" | ").map((part) => part.trim()).filter(Boolean)
+      : [];
+
+    const gpsUrl = partesUbicacion[0] || "";
+    const referenciaTextual =
+      partesUbicacion.length > 1
+        ? partesUbicacion.slice(1).join(" | ").trim()
+        : "";
+
+    const tieneGps = gpsUrl.toLowerCase().startsWith("http");
+    const soloReferencia = ubicacionRaw && !tieneGps;
 
     return (
       <div
@@ -393,70 +410,138 @@ export default function TaxistaPanel() {
       >
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
-            <p className={["text-sm font-medium", isHistory ? "text-zinc-400" : "text-zinc-500"].join(" ")}>
+            <p
+              className={[
+                "text-sm font-medium",
+                isHistory ? "text-zinc-400" : "text-zinc-500",
+              ].join(" ")}
+            >
               Origen
             </p>
-            <p className={["mt-1 text-base font-semibold", isHistory ? "text-zinc-700" : "text-zinc-900"].join(" ")}>
+            <p
+              className={[
+                "mt-1 text-base font-semibold",
+                isHistory ? "text-zinc-700" : "text-zinc-900",
+              ].join(" ")}
+            >
               {reserva.origen}
             </p>
           </div>
 
           <div>
-            <p className={["text-sm font-medium", isHistory ? "text-zinc-400" : "text-zinc-500"].join(" ")}>
+            <p
+              className={[
+                "text-sm font-medium",
+                isHistory ? "text-zinc-400" : "text-zinc-500",
+              ].join(" ")}
+            >
               Destino
             </p>
-            <p className={["mt-1 text-base font-semibold", isHistory ? "text-zinc-700" : "text-zinc-900"].join(" ")}>
+            <p
+              className={[
+                "mt-1 text-base font-semibold",
+                isHistory ? "text-zinc-700" : "text-zinc-900",
+              ].join(" ")}
+            >
               {reserva.destino}
             </p>
           </div>
 
           <div>
-            <p className={["text-sm font-medium", isHistory ? "text-zinc-400" : "text-zinc-500"].join(" ")}>
+            <p
+              className={[
+                "text-sm font-medium",
+                isHistory ? "text-zinc-400" : "text-zinc-500",
+              ].join(" ")}
+            >
               Fecha y hora
             </p>
-            <p className={["mt-1 text-base font-semibold", isHistory ? "text-zinc-700" : "text-zinc-900"].join(" ")}>
+            <p
+              className={[
+                "mt-1 text-base font-semibold",
+                isHistory ? "text-zinc-700" : "text-zinc-900",
+              ].join(" ")}
+            >
               {formatFecha(reserva.fecha_hora)}
             </p>
           </div>
 
           <div>
-            <p className={["text-sm font-medium", isHistory ? "text-zinc-400" : "text-zinc-500"].join(" ")}>
+            <p
+              className={[
+                "text-sm font-medium",
+                isHistory ? "text-zinc-400" : "text-zinc-500",
+              ].join(" ")}
+            >
               Pasajeros
             </p>
-            <p className={["mt-1 text-base font-semibold", isHistory ? "text-zinc-700" : "text-zinc-900"].join(" ")}>
+            <p
+              className={[
+                "mt-1 text-base font-semibold",
+                isHistory ? "text-zinc-700" : "text-zinc-900",
+              ].join(" ")}
+            >
               {reserva.pasajeros}
             </p>
           </div>
 
           <div>
-            <p className={["text-sm font-medium", isHistory ? "text-zinc-400" : "text-zinc-500"].join(" ")}>
+            <p
+              className={[
+                "text-sm font-medium",
+                isHistory ? "text-zinc-400" : "text-zinc-500",
+              ].join(" ")}
+            >
               Cliente
             </p>
-            <p className={["mt-1 text-base font-semibold", isHistory ? "text-zinc-700" : "text-zinc-900"].join(" ")}>
+            <p
+              className={[
+                "mt-1 text-base font-semibold",
+                isHistory ? "text-zinc-700" : "text-zinc-900",
+              ].join(" ")}
+            >
               {reserva.cliente_nombre}
             </p>
           </div>
 
           <div>
-            <p className={["text-sm font-medium", isHistory ? "text-zinc-400" : "text-zinc-500"].join(" ")}>
+            <p
+              className={[
+                "text-sm font-medium",
+                isHistory ? "text-zinc-400" : "text-zinc-500",
+              ].join(" ")}
+            >
               Teléfono
             </p>
-            <p className={["mt-1 text-base font-semibold", isHistory ? "text-zinc-700" : "text-zinc-900"].join(" ")}>
+            <p
+              className={[
+                "mt-1 text-base font-semibold",
+                isHistory ? "text-zinc-700" : "text-zinc-900",
+              ].join(" ")}
+            >
               {reserva.cliente_telefono}
             </p>
           </div>
         </div>
 
-        {!isHistory && reserva.ubicacion_cliente ? (
-          <div className="mt-6">
-            <a
-              href={reserva.ubicacion_cliente}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center justify-center rounded-3xl bg-green-600 px-4 py-3 font-semibold text-white shadow-sm transition hover:bg-green-700"
-            >
-              📍 Ver ubicación del cliente
-            </a>
+        {!isHistory && (tieneGps || soloReferencia) ? (
+          <div className="mt-6 space-y-2">
+            {tieneGps ? (
+              <a
+                href={gpsUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center justify-center rounded-3xl bg-green-600 px-4 py-3 font-semibold text-white shadow-sm transition hover:bg-green-700"
+              >
+                📍 Ver ubicación en Maps
+              </a>
+            ) : null}
+
+            {(tieneGps && referenciaTextual) || soloReferencia ? (
+              <p className="text-sm text-zinc-600">
+                📝 Referencia: {tieneGps ? referenciaTextual : ubicacionRaw}
+              </p>
+            ) : null}
           </div>
         ) : null}
 
