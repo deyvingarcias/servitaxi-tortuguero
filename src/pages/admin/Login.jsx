@@ -52,6 +52,8 @@ export default function Login() {
             <input
               id="email"
               type="email"
+              name="email"
+              autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-[#16a34a] focus:ring-2 focus:ring-[#16a34a]/20"
@@ -70,6 +72,8 @@ export default function Login() {
             <input
               id="password"
               type="password"
+              name="password"
+              autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="w-full rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-[#16a34a] focus:ring-2 focus:ring-[#16a34a]/20"

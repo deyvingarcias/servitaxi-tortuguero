@@ -68,6 +68,8 @@ export default function TaxistaLogin() {
               <input
                 className={inputClass}
                 type="email"
+                name="email"
+                autoComplete="email"
                 placeholder="tu@email.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -79,6 +81,8 @@ export default function TaxistaLogin() {
               <input
                 className={inputClass}
                 type="password"
+                name="password"
+                autoComplete="current-password"
                 placeholder="Tu contraseña"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
