@@ -1,4 +1,3 @@
-// src/pages/taxista/Panel.jsx
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
@@ -23,7 +22,7 @@ export default function TaxistaPanel() {
   const [viajesAceptados, setViajesAceptados] = useState([]);
   const [historial, setHistorial] = useState([]);
   const [error, setError] = useState("");
-  const [actionLoading, setActionLoading] = useState(null); // { id, type: 'accept' | 'complete' } | null
+  const [actionLoading, setActionLoading] = useState(null);
   const [alarmSilenced, setAlarmSilenced] = useState(false);
 
   const pendingReservas = useMemo(() => reservas, [reservas]);
@@ -79,7 +78,8 @@ export default function TaxistaPanel() {
       )
       .eq("estado", "completada")
       .eq("conductor", nombreTaxista)
-      .order("fecha_hora", { ascending: false });
+      .order("fecha_hora", { ascending: false })
+      .limit(10);
 
     if (fetchError) {
       throw fetchError;
@@ -332,7 +332,9 @@ export default function TaxistaPanel() {
 
     try {
       const nombreConductor = taxistaNombre?.trim();
-      if (!nombreConductor) throw new Error("No se pudo identificar al conductor.");
+      if (!nombreConductor) {
+        throw new Error("No se pudo identificar al conductor.");
+      }
 
       const { error: updateError } = await supabase
         .from("reservas")
@@ -386,120 +388,60 @@ export default function TaxistaPanel() {
         key={reserva.id}
         className={[
           "rounded-3xl bg-white p-6 shadow-sm ring-1 transition",
-          isHistory ? "bg-zinc-50 ring-zinc-100" : accepted ? "ring-blue-200" : "ring-zinc-200",
+          isHistory ? "ring-zinc-100" : accepted ? "ring-blue-200" : "ring-zinc-200",
         ].join(" ")}
       >
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
-            <p
-              className={[
-                "text-sm font-medium",
-                isHistory ? "text-zinc-400" : "text-zinc-500",
-              ].join(" ")}
-            >
+            <p className={["text-sm font-medium", isHistory ? "text-zinc-400" : "text-zinc-500"].join(" ")}>
               Origen
             </p>
-            <p
-              className={[
-                "mt-1 text-base font-semibold",
-                isHistory ? "text-zinc-700" : "text-zinc-900",
-              ].join(" ")}
-            >
+            <p className={["mt-1 text-base font-semibold", isHistory ? "text-zinc-700" : "text-zinc-900"].join(" ")}>
               {reserva.origen}
             </p>
           </div>
 
           <div>
-            <p
-              className={[
-                "text-sm font-medium",
-                isHistory ? "text-zinc-400" : "text-zinc-500",
-              ].join(" ")}
-            >
+            <p className={["text-sm font-medium", isHistory ? "text-zinc-400" : "text-zinc-500"].join(" ")}>
               Destino
             </p>
-            <p
-              className={[
-                "mt-1 text-base font-semibold",
-                isHistory ? "text-zinc-700" : "text-zinc-900",
-              ].join(" ")}
-            >
+            <p className={["mt-1 text-base font-semibold", isHistory ? "text-zinc-700" : "text-zinc-900"].join(" ")}>
               {reserva.destino}
             </p>
           </div>
 
           <div>
-            <p
-              className={[
-                "text-sm font-medium",
-                isHistory ? "text-zinc-400" : "text-zinc-500",
-              ].join(" ")}
-            >
+            <p className={["text-sm font-medium", isHistory ? "text-zinc-400" : "text-zinc-500"].join(" ")}>
               Fecha y hora
             </p>
-            <p
-              className={[
-                "mt-1 text-base font-semibold",
-                isHistory ? "text-zinc-700" : "text-zinc-900",
-              ].join(" ")}
-            >
+            <p className={["mt-1 text-base font-semibold", isHistory ? "text-zinc-700" : "text-zinc-900"].join(" ")}>
               {formatFecha(reserva.fecha_hora)}
             </p>
           </div>
 
           <div>
-            <p
-              className={[
-                "text-sm font-medium",
-                isHistory ? "text-zinc-400" : "text-zinc-500",
-              ].join(" ")}
-            >
+            <p className={["text-sm font-medium", isHistory ? "text-zinc-400" : "text-zinc-500"].join(" ")}>
               Pasajeros
             </p>
-            <p
-              className={[
-                "mt-1 text-base font-semibold",
-                isHistory ? "text-zinc-700" : "text-zinc-900",
-              ].join(" ")}
-            >
+            <p className={["mt-1 text-base font-semibold", isHistory ? "text-zinc-700" : "text-zinc-900"].join(" ")}>
               {reserva.pasajeros}
             </p>
           </div>
 
           <div>
-            <p
-              className={[
-                "text-sm font-medium",
-                isHistory ? "text-zinc-400" : "text-zinc-500",
-              ].join(" ")}
-            >
+            <p className={["text-sm font-medium", isHistory ? "text-zinc-400" : "text-zinc-500"].join(" ")}>
               Cliente
             </p>
-            <p
-              className={[
-                "mt-1 text-base font-semibold",
-                isHistory ? "text-zinc-700" : "text-zinc-900",
-              ].join(" ")}
-            >
+            <p className={["mt-1 text-base font-semibold", isHistory ? "text-zinc-700" : "text-zinc-900"].join(" ")}>
               {reserva.cliente_nombre}
             </p>
           </div>
 
           <div>
-            <p
-              className={[
-                "text-sm font-medium",
-                isHistory ? "text-zinc-400" : "text-zinc-500",
-              ].join(" ")}
-            >
+            <p className={["text-sm font-medium", isHistory ? "text-zinc-400" : "text-zinc-500"].join(" ")}>
               Teléfono
             </p>
-            <p
-              className={[
-                "mt-1 text-base font-semibold",
-                isHistory ? "text-zinc-700" : "text-zinc-900",
-              ].join(" ")}
-            >
+            <p className={["mt-1 text-base font-semibold", isHistory ? "text-zinc-700" : "text-zinc-900"].join(" ")}>
               {reserva.cliente_telefono}
             </p>
           </div>
@@ -678,6 +620,12 @@ export default function TaxistaPanel() {
                 )}
               </div>
             )}
+
+            {historial.length === 10 ? (
+              <p className="mt-4 text-sm text-zinc-500">
+                Mostrando los 10 viajes más recientes
+              </p>
+            ) : null}
           </section>
         </div>
       </div>

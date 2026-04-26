@@ -16,6 +16,7 @@ const initialForm = {
   clienteTelefono: "",
   clienteEmail: "",
   metodoPago: "presencial",
+  referenciaUbicacion: "",
 };
 
 function Reservar() {
@@ -96,6 +97,16 @@ function Reservar() {
         setUbicacionError("No se pudo obtener la ubicación");
       }
     );
+  };
+
+  const buildUbicacionCliente = () => {
+    const gps = ubicacionCliente.trim();
+    const referencia = form.referenciaUbicacion.trim();
+
+    if (gps && referencia) return `${gps} | ${referencia}`;
+    if (gps) return gps;
+    if (referencia) return referencia;
+    return null;
   };
 
   const validateStep = (currentStep) => {
@@ -180,6 +191,8 @@ function Reservar() {
     setError("");
 
     try {
+      const ubicacionClienteCompleta = buildUbicacionCliente();
+
       const payload = {
         cliente_nombre: form.clienteNombre.trim(),
         cliente_email: form.clienteEmail.trim() || null,
@@ -191,7 +204,7 @@ function Reservar() {
         metodo_pago: form.metodoPago,
         pasajeros: Number(form.pasajeros),
         estado: "pendiente",
-        ubicacion_cliente: ubicacionCliente || null,
+        ubicacion_cliente: ubicacionClienteCompleta,
       };
 
       const { error: insertError } = await supabase
@@ -214,12 +227,13 @@ function Reservar() {
             cliente_telefono: payload.cliente_telefono,
             origen: payload.origen,
             destino: payload.destino,
-            fecha_hora: form.fecha && form.hora ? `${form.fecha}T${form.hora}` : "",
+            fecha_hora:
+              form.fecha && form.hora ? `${form.fecha}T${form.hora}` : "",
             tipo_servicio: payload.tipo_servicio,
             metodo_pago: payload.metodo_pago,
             pasajeros: payload.pasajeros,
             precio: precioCalculado,
-            ubicacion_cliente: ubicacionCliente || null,
+            ubicacion_cliente: ubicacionClienteCompleta,
           }),
         });
       } catch (emailErr) {
@@ -233,12 +247,13 @@ function Reservar() {
           cliente_telefono: payload.cliente_telefono,
           origen: payload.origen,
           destino: payload.destino,
-          fecha_hora: form.fecha && form.hora ? `${form.fecha}T${form.hora}` : "",
+          fecha_hora:
+            form.fecha && form.hora ? `${form.fecha}T${form.hora}` : "",
           tipo_servicio: payload.tipo_servicio,
           metodo_pago: payload.metodo_pago,
           pasajeros: payload.pasajeros,
           precio: precioCalculado,
-          ubicacion_cliente: ubicacionCliente || null,
+          ubicacion_cliente: ubicacionClienteCompleta,
         },
       });
     } catch (err) {
@@ -404,6 +419,25 @@ function Reservar() {
                       {ubicacionError}
                     </p>
                   )}
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="referenciaUbicacion"
+                    className="mb-2 block text-sm font-medium text-zinc-700"
+                  >
+                    Describe dónde estás exactamente (opcional)
+                  </label>
+                  <textarea
+                    id="referenciaUbicacion"
+                    rows={4}
+                    value={form.referenciaUbicacion}
+                    onChange={(e) =>
+                      updateField("referenciaUbicacion", e.target.value)
+                    }
+                    placeholder="Ej: Casa azul frente a la pulpería, cerca del puente, 200m después de la escuela..."
+                    className="w-full rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                  />
                 </div>
 
                 <div>
@@ -638,6 +672,16 @@ function Reservar() {
                     <span className="block text-zinc-500">Método de pago</span>
                     <span className="font-medium">Pagar al llegar</span>
                   </div>
+                  {form.referenciaUbicacion.trim() ? (
+                    <div className="sm:col-span-2">
+                      <span className="block text-zinc-500">
+                        Referencia de ubicación
+                      </span>
+                      <span className="font-medium">
+                        {form.referenciaUbicacion.trim()}
+                      </span>
+                    </div>
+                  ) : null}
                 </div>
               </div>
 
