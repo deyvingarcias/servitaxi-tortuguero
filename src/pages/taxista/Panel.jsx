@@ -20,6 +20,7 @@ export default function TaxistaPanel() {
     telefono: "",
   });
   const [reservas, setReservas] = useState([]);
+  const [viajesAceptados, setViajesAceptados] = useState([]);
   const [error, setError] = useState("");
   const [actionLoadingId, setActionLoadingId] = useState(null);
   const [alarmSilenced, setAlarmSilenced] = useState(false);
@@ -40,6 +41,28 @@ export default function TaxistaPanel() {
     }
 
     setReservas(data || []);
+  }, []);
+
+  const loadViajesAceptados = useCallback(async (nombreTaxista) => {
+    if (!nombreTaxista) {
+      setViajesAceptados([]);
+      return;
+    }
+
+    const { data, error: fetchError } = await supabase
+      .from("reservas")
+      .select(
+        "id, origen, destino, fecha_hora, pasajeros, cliente_nombre, cliente_telefono, ubicacion_cliente, conductor"
+      )
+      .eq("estado", "confirmada")
+      .eq("conductor", nombreTaxista)
+      .order("fecha_hora", { ascending: false });
+
+    if (fetchError) {
+      throw fetchError;
+    }
+
+    setViajesAceptados(data || []);
   }, []);
 
   const playAlarmBeep = useCallback(async () => {
@@ -131,7 +154,9 @@ export default function TaxistaPanel() {
 
         if (!mounted) return;
 
-        setTaxistaNombre(taxista.nombre || "");
+        const nombreActivo = taxista.nombre || "";
+
+        setTaxistaNombre(nombreActivo);
         setTaxistaData({
           nombre: taxista.nombre || "",
           placa: taxista.placa || "",
@@ -140,6 +165,7 @@ export default function TaxistaPanel() {
         });
 
         await loadReservas();
+        await loadViajesAceptados(nombreActivo);
       } catch (err) {
         if (!mounted) return;
         setError(err?.message || "No se pudo cargar el panel.");
@@ -155,6 +181,9 @@ export default function TaxistaPanel() {
     intervalId = setInterval(async () => {
       try {
         await loadReservas();
+        if (taxistaNombre) {
+          await loadViajesAceptados(taxistaNombre);
+        }
       } catch {
         // silencioso para el polling
       }
@@ -169,7 +198,7 @@ export default function TaxistaPanel() {
         ctx.close().catch(() => {});
       }
     };
-  }, [loadReservas, navigate]);
+  }, [loadReservas, loadViajesAceptados, navigate, taxistaNombre]);
 
   useEffect(() => {
     const shouldPlayAlarm = pendingReservas.length > 0 && !alarmSilenced;
@@ -251,6 +280,7 @@ export default function TaxistaPanel() {
         });
 
       setReservas((prev) => prev.filter((r) => r.id !== reservaId));
+      await loadViajesAceptados(taxista.nombre || taxistaNombre);
     } catch (err) {
       setError(err?.message || "No se pudo aceptar el viaje.");
     } finally {
@@ -279,6 +309,95 @@ export default function TaxistaPanel() {
 
     return `https://wa.me/${numero}?text=${encodeURIComponent(mensaje)}`;
   };
+
+  const renderReservaCard = (reserva, { accepted = false } = {}) => (
+    <div
+      key={reserva.id}
+      className={[
+        "rounded-3xl bg-white p-6 shadow-sm ring-1 transition",
+        accepted ? "ring-blue-200" : "ring-zinc-200",
+      ].join(" ")}
+    >
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div>
+          <p className="text-sm font-medium text-zinc-500">Origen</p>
+          <p className="mt-1 text-base font-semibold text-zinc-900">
+            {reserva.origen}
+          </p>
+        </div>
+
+        <div>
+          <p className="text-sm font-medium text-zinc-500">Destino</p>
+          <p className="mt-1 text-base font-semibold text-zinc-900">
+            {reserva.destino}
+          </p>
+        </div>
+
+        <div>
+          <p className="text-sm font-medium text-zinc-500">Fecha y hora</p>
+          <p className="mt-1 text-base font-semibold text-zinc-900">
+            {formatFecha(reserva.fecha_hora)}
+          </p>
+        </div>
+
+        <div>
+          <p className="text-sm font-medium text-zinc-500">Pasajeros</p>
+          <p className="mt-1 text-base font-semibold text-zinc-900">
+            {reserva.pasajeros}
+          </p>
+        </div>
+
+        <div>
+          <p className="text-sm font-medium text-zinc-500">Cliente</p>
+          <p className="mt-1 text-base font-semibold text-zinc-900">
+            {reserva.cliente_nombre}
+          </p>
+        </div>
+
+        <div>
+          <p className="text-sm font-medium text-zinc-500">Teléfono</p>
+          <p className="mt-1 text-base font-semibold text-zinc-900">
+            {reserva.cliente_telefono}
+          </p>
+        </div>
+      </div>
+
+      {reserva.ubicacion_cliente ? (
+        <div className="mt-6">
+          <a
+            href={reserva.ubicacion_cliente}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center justify-center rounded-3xl bg-green-600 px-4 py-3 font-semibold text-white shadow-sm transition hover:bg-green-700"
+          >
+            📍 Ver ubicación del cliente
+          </a>
+        </div>
+      ) : null}
+
+      <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+        {!accepted ? (
+          <button
+            type="button"
+            onClick={() => handleAccept(reserva.id)}
+            disabled={actionLoadingId === reserva.id}
+            className="inline-flex items-center justify-center rounded-3xl bg-emerald-600 px-4 py-3 font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-70"
+          >
+            {actionLoadingId === reserva.id ? "Aceptando..." : "Aceptar viaje"}
+          </button>
+        ) : null}
+
+        <a
+          href={buildWhatsAppUrl(reserva)}
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex items-center justify-center rounded-3xl bg-green-600 px-4 py-3 font-semibold text-white shadow-sm transition hover:bg-green-700"
+        >
+          WhatsApp cliente
+        </a>
+      </div>
+    </div>
+  );
 
   if (checkingAuth || loading) {
     return (
@@ -330,103 +449,55 @@ export default function TaxistaPanel() {
           </div>
         ) : null}
 
-        {pendingReservas.length === 0 ? (
-          <div className="rounded-3xl bg-white p-8 text-center shadow-sm ring-1 ring-zinc-200">
-            <p className="text-lg font-medium text-zinc-900">
-              No hay solicitudes pendientes en este momento
-            </p>
-          </div>
-        ) : (
-          <div className="grid gap-4">
-            {pendingReservas.map((reserva) => (
-              <div
-                key={reserva.id}
-                className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-zinc-200"
-              >
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div>
-                    <p className="text-sm font-medium text-zinc-500">Origen</p>
-                    <p className="mt-1 text-base font-semibold text-zinc-900">
-                      {reserva.origen}
-                    </p>
-                  </div>
+        <div className="space-y-8">
+          <section>
+            <div className="mb-4 flex items-center gap-3">
+              <p className="inline-flex rounded-full bg-emerald-600/10 px-3 py-1 text-sm font-medium text-emerald-700">
+                Pendientes
+              </p>
+              <h2 className="text-xl font-semibold text-zinc-900">
+                Solicitudes pendientes
+              </h2>
+            </div>
 
-                  <div>
-                    <p className="text-sm font-medium text-zinc-500">Destino</p>
-                    <p className="mt-1 text-base font-semibold text-zinc-900">
-                      {reserva.destino}
-                    </p>
-                  </div>
-
-                  <div>
-                    <p className="text-sm font-medium text-zinc-500">
-                      Fecha y hora
-                    </p>
-                    <p className="mt-1 text-base font-semibold text-zinc-900">
-                      {formatFecha(reserva.fecha_hora)}
-                    </p>
-                  </div>
-
-                  <div>
-                    <p className="text-sm font-medium text-zinc-500">Pasajeros</p>
-                    <p className="mt-1 text-base font-semibold text-zinc-900">
-                      {reserva.pasajeros}
-                    </p>
-                  </div>
-
-                  <div>
-                    <p className="text-sm font-medium text-zinc-500">Cliente</p>
-                    <p className="mt-1 text-base font-semibold text-zinc-900">
-                      {reserva.cliente_nombre}
-                    </p>
-                  </div>
-
-                  <div>
-                    <p className="text-sm font-medium text-zinc-500">Teléfono</p>
-                    <p className="mt-1 text-base font-semibold text-zinc-900">
-                      {reserva.cliente_telefono}
-                    </p>
-                  </div>
-                </div>
-
-                {reserva.ubicacion_cliente ? (
-                  <div className="mt-6">
-                    <a
-                      href={reserva.ubicacion_cliente}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex items-center justify-center rounded-3xl bg-green-600 px-4 py-3 font-semibold text-white shadow-sm transition hover:bg-green-700"
-                    >
-                      📍 Ver ubicación del cliente
-                    </a>
-                  </div>
-                ) : null}
-
-                <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-                  <button
-                    type="button"
-                    onClick={() => handleAccept(reserva.id)}
-                    disabled={actionLoadingId === reserva.id}
-                    className="inline-flex items-center justify-center rounded-3xl bg-emerald-600 px-4 py-3 font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-70"
-                  >
-                    {actionLoadingId === reserva.id
-                      ? "Aceptando..."
-                      : "Aceptar viaje"}
-                  </button>
-
-                  <a
-                    href={buildWhatsAppUrl(reserva)}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center justify-center rounded-3xl bg-green-600 px-4 py-3 font-semibold text-white shadow-sm transition hover:bg-green-700"
-                  >
-                    WhatsApp cliente
-                  </a>
-                </div>
+            {pendingReservas.length === 0 ? (
+              <div className="rounded-3xl bg-white p-8 text-center shadow-sm ring-1 ring-zinc-200">
+                <p className="text-lg font-medium text-zinc-900">
+                  No hay solicitudes pendientes en este momento
+                </p>
               </div>
-            ))}
-          </div>
-        )}
+            ) : (
+              <div className="grid gap-4">
+                {pendingReservas.map((reserva) => renderReservaCard(reserva))}
+              </div>
+            )}
+          </section>
+
+          <section>
+            <div className="mb-4 flex items-center gap-3">
+              <p className="inline-flex rounded-full bg-blue-600/10 px-3 py-1 text-sm font-medium text-blue-700">
+                Viajes aceptados
+              </p>
+              <h2 className="text-xl font-semibold text-zinc-900">
+                Viajes aceptados
+              </h2>
+            </div>
+
+            {viajesAceptados.length === 0 ? (
+              <div className="rounded-3xl bg-white p-8 text-center shadow-sm ring-1 ring-blue-200">
+                <p className="text-lg font-medium text-zinc-900">
+                  No has aceptado ningún viaje todavía
+                </p>
+              </div>
+            ) : (
+              <div className="grid gap-4">
+                {viajesAceptados.map((reserva) =>
+                  renderReservaCard(reserva, { accepted: true })
+                )}
+              </div>
+            )}
+          </section>
+        </div>
       </div>
     </div>
   );
