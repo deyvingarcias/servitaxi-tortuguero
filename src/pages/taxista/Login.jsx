@@ -25,7 +25,7 @@ export default function TaxistaLogin() {
         throw authError;
       }
 
-      navigate("/taxista/panel", { replace: true });
+      window.location.href = "/taxista/panel";
     } catch (err) {
       setError(err?.message || "No se pudo iniciar sesión.");
     } finally {

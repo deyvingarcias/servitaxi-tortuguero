@@ -25,7 +25,7 @@ export default function Login() {
       return;
     }
 
-    navigate("/admin/reservas");
+    window.location.href = "/admin/reservas";
   };
 
   return (
