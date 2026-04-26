@@ -120,7 +120,7 @@ export default async function handler(req, res) {
       `;
 
       await resend.emails.send({
-        from: "reservas@servitaxitortuguero.com",
+        from: "ServiTaxi Tortuguero <reservas@servitaxitortuguero.com>",
         to: normalizedClientEmail,
         subject: "Confirmación de reserva – ServiTaxi Tortuguero",
         html: clientHtml,
@@ -149,7 +149,7 @@ export default async function handler(req, res) {
           </div>
           <div style="margin-top: 24px;">
             <a
-              href="https://servitaxi-tortuguero.vercel.app/taxista/panel"
+             href="https://servitaxitortuguero.com/taxista/panel"
               style="display:inline-block;background:#16a34a;color:#ffffff;text-decoration:none;padding:12px 18px;border-radius:12px;font-weight:700;"
             >
               Ver solicitudes
@@ -162,7 +162,7 @@ export default async function handler(req, res) {
         taxistas.map(async (taxista) => {
           try {
             await resend.emails.send({
-              from: "reservas@servitaxitortuguero.com",
+              from: "ServiTaxi Tortuguero <reservas@servitaxitortuguero.com>",
               to: taxista.email,
               subject: `Nueva solicitud de taxi — ${origen} → ${destino}`,
               html: taxistaHtml(taxista.nombre),
