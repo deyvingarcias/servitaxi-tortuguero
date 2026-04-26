@@ -1,9 +1,8 @@
 import { useState } from "react";
 import { supabase } from "../../lib/supabase";
-import { useNavigate, Link } from "react-router-dom";
+import { Link } from "react-router-dom";
 
 export default function Login() {
-  const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -14,10 +13,7 @@ export default function Login() {
     setError("");
     setLoading(true);
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
 
     if (error) {
       setError(error.message);
@@ -33,22 +29,13 @@ export default function Login() {
       <div className="w-full max-w-md rounded-3xl bg-white p-8 shadow-sm ring-1 ring-zinc-200">
         <div className="mb-6 text-center">
           <h1 className="text-3xl font-bold text-[#16a34a]">Admin Login</h1>
-          <p className="mt-2 text-sm text-zinc-500">
-            Acceso privado para gestionar reservas
-          </p>
-          <Link to="/" className="mt-2 text-sm text-zinc-400 hover:text-zinc-600">
-  ← Volver al inicio
-</Link>
+          <p className="mt-2 text-sm text-zinc-500">Acceso privado para gestionar reservas</p>
+          <Link to="/" className="mt-2 text-sm text-zinc-400 hover:text-zinc-600">← Volver al inicio</Link>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label
-              htmlFor="email"
-              className="mb-2 block text-sm font-medium text-zinc-700"
-            >
-              Email
-            </label>
+            <label htmlFor="email" className="mb-2 block text-sm font-medium text-zinc-700">Email</label>
             <input
               id="email"
               type="email"
@@ -63,12 +50,7 @@ export default function Login() {
           </div>
 
           <div>
-            <label
-              htmlFor="password"
-              className="mb-2 block text-sm font-medium text-zinc-700"
-            >
-              Contraseña
-            </label>
+            <label htmlFor="password" className="mb-2 block text-sm font-medium text-zinc-700">Contraseña</label>
             <input
               id="password"
               type="password"
@@ -83,9 +65,7 @@ export default function Login() {
           </div>
 
           {error && (
-            <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-              {error}
-            </div>
+            <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
           )}
 
           <button
