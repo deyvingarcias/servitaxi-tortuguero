@@ -120,7 +120,7 @@ export default async function handler(req, res) {
       `;
 
       await resend.emails.send({
-        from: "onboarding@resend.dev",
+        from: "reservas@servitaxitortuguero.com",
         to: normalizedClientEmail,
         subject: "Confirmación de reserva – ServiTaxi Tortuguero",
         html: clientHtml,
@@ -162,7 +162,7 @@ export default async function handler(req, res) {
         taxistas.map(async (taxista) => {
           try {
             await resend.emails.send({
-              from: "onboarding@resend.dev",
+              from: "reservas@servitaxitortuguero.com",
               to: taxista.email,
               subject: `Nueva solicitud de taxi — ${origen} → ${destino}`,
               html: taxistaHtml(taxista.nombre),
