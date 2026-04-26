@@ -178,10 +178,13 @@ function App() {
             <p>Tortuguero, Nicaragua</p>
           </div>
           <div className="flex items-center gap-4">
-            <Link to="/admin/reservas" className="text-xs text-zinc-300">
-              Admin
-            </Link>
-          </div>
+  <Link to="/taxista/login" className="text-xs text-zinc-300">
+    Taxistas
+  </Link>
+  <Link to="/admin/reservas" className="text-xs text-zinc-300">
+    Admin
+  </Link>
+</div>
         </div>
       </footer>
     </div>

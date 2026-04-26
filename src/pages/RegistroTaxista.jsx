@@ -8,6 +8,8 @@ export default function RegistroTaxista() {
     nombre: "",
     telefono: "",
     email: "",
+    password: "",
+    confirm_password: "",
     placa: "",
     color: "",
     numero_taxi: "",
@@ -23,13 +25,28 @@ export default function RegistroTaxista() {
 
     if (!form.nombre.trim()) next.nombre = "El nombre completo es obligatorio.";
     if (!form.telefono.trim()) next.telefono = "El teléfono es obligatorio.";
-    if (!form.email.trim()) next.email = "El email es obligatorio.";
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
+
+    const email = form.email.trim();
+    if (!email) next.email = "El email es obligatorio.";
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       next.email = "Introduce un email válido.";
     }
+
+    if (!form.password) next.password = "La contraseña es obligatoria.";
+    else if (form.password.length < 6) {
+      next.password = "La contraseña debe tener al menos 6 caracteres.";
+    }
+
+    if (!form.confirm_password) {
+      next.confirm_password = "Confirma la contraseña.";
+    } else if (form.confirm_password !== form.password) {
+      next.confirm_password = "Las contraseñas no coinciden.";
+    }
+
     if (!form.placa.trim()) next.placa = "La placa del vehículo es obligatoria.";
-    if (!form.numero_taxi.trim())
+    if (!form.numero_taxi.trim()) {
       next.numero_taxi = "El número de taxi es obligatorio.";
+    }
 
     return next;
   }, [form]);
@@ -49,6 +66,8 @@ export default function RegistroTaxista() {
       nombre: true,
       telefono: true,
       email: true,
+      password: true,
+      confirm_password: true,
       placa: true,
       color: true,
       numero_taxi: true,
@@ -65,15 +84,31 @@ export default function RegistroTaxista() {
     setSuccess("");
 
     try {
+      const normalizedEmail = form.email.trim().toLowerCase();
+
+      const { data: signUpData, error: signUpError } =
+        await supabase.auth.signUp({
+          email: normalizedEmail,
+          password: form.password,
+        });
+
+      if (signUpError) {
+        throw signUpError;
+      }
+
+      if (!signUpData?.user) {
+        throw new Error("No se pudo crear la cuenta de autenticación.");
+      }
+
       const { error: insertError } = await supabase.from("taxistas").insert([
         {
           nombre: form.nombre.trim(),
           telefono: form.telefono.trim(),
-          email: form.email.trim().toLowerCase(),
+          email: normalizedEmail,
           placa: form.placa.trim(),
           color: form.color.trim(),
           numero_taxi: form.numero_taxi.trim(),
-          activo: true,
+          activo: false,
         },
       ]);
 
@@ -81,11 +116,13 @@ export default function RegistroTaxista() {
         throw insertError;
       }
 
-      setSuccess("Registro enviado, el administrador activará tu cuenta");
+      setSuccess("Cuenta creada correctamente. Lenin activará tu acceso pronto.");
       setForm({
         nombre: "",
         telefono: "",
         email: "",
+        password: "",
+        confirm_password: "",
         placa: "",
         color: "",
         numero_taxi: "",
@@ -178,6 +215,40 @@ export default function RegistroTaxista() {
               />
               {touched.email && errors.email ? (
                 <p className="mt-2 text-sm text-red-600">{errors.email}</p>
+              ) : null}
+            </div>
+
+            <div>
+              <label className={labelClass}>Contraseña</label>
+              <input
+                value={form.password}
+                onChange={(e) => handleChange("password", e.target.value)}
+                onBlur={() => handleBlur("password")}
+                className={inputClass}
+                placeholder="Mínimo 6 caracteres"
+                type="password"
+              />
+              {touched.password && errors.password ? (
+                <p className="mt-2 text-sm text-red-600">{errors.password}</p>
+              ) : null}
+            </div>
+
+            <div>
+              <label className={labelClass}>Confirmar contraseña</label>
+              <input
+                value={form.confirm_password}
+                onChange={(e) =>
+                  handleChange("confirm_password", e.target.value)
+                }
+                onBlur={() => handleBlur("confirm_password")}
+                className={inputClass}
+                placeholder="Repite tu contraseña"
+                type="password"
+              />
+              {touched.confirm_password && errors.confirm_password ? (
+                <p className="mt-2 text-sm text-red-600">
+                  {errors.confirm_password}
+                </p>
               ) : null}
             </div>
 
