@@ -30,7 +30,7 @@ export default function TaxistaPanel() {
     const { data, error: fetchError } = await supabase
       .from("reservas")
       .select(
-        "id, origen, destino, fecha_hora, pasajeros, cliente_nombre, cliente_telefono, estado, conductor"
+        "id, origen, destino, fecha_hora, pasajeros, cliente_nombre, cliente_telefono, ubicacion_cliente, estado, conductor"
       )
       .eq("estado", "pendiente")
       .order("fecha_hora", { ascending: true });
@@ -359,7 +359,9 @@ export default function TaxistaPanel() {
                   </div>
 
                   <div>
-                    <p className="text-sm font-medium text-zinc-500">Fecha y hora</p>
+                    <p className="text-sm font-medium text-zinc-500">
+                      Fecha y hora
+                    </p>
                     <p className="mt-1 text-base font-semibold text-zinc-900">
                       {formatFecha(reserva.fecha_hora)}
                     </p>
@@ -386,6 +388,19 @@ export default function TaxistaPanel() {
                     </p>
                   </div>
                 </div>
+
+                {reserva.ubicacion_cliente ? (
+                  <div className="mt-6">
+                    <a
+                      href={reserva.ubicacion_cliente}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center justify-center rounded-3xl bg-green-600 px-4 py-3 font-semibold text-white shadow-sm transition hover:bg-green-700"
+                    >
+                      📍 Ver ubicación del cliente
+                    </a>
+                  </div>
+                ) : null}
 
                 <div className="mt-6 flex flex-col gap-3 sm:flex-row">
                   <button
